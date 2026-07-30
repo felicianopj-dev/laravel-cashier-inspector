@@ -1,0 +1,58 @@
+{
+    "name": "felicianopj/laravel-cashier-inspector",
+    "description": "A local debugging and diagnostic dashboard for Laravel Cashier. Captures Stripe webhook processing, detects inconsistent billing states, and explains what went wrong.",
+    "keywords": [
+        "laravel",
+        "cashier",
+        "stripe",
+        "webhooks",
+        "debugging",
+        "diagnostics"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Feliciano S. Prochera Jr",
+            "email": "felicianopj@protonmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "laravel/cashier": "^15.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "FelicianoPJ\\CashierInspector\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "FelicianoPJ\\CashierInspector\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "FelicianoPJ\\CashierInspector\\CashierInspectorServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
