@@ -7,6 +7,7 @@ it('merges the package config', function () {
         ->and(config('cashier-inspector.middleware'))->toBe(['web'])
         ->and(config('cashier-inspector.polling.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.polling.interval_ms'))->toBe(5000)
+        ->and(config('cashier-inspector.diagnostics.rules'))->toBe([])
         ->and(config('cashier-inspector.redaction.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.storage.retention_days'))->toBe(7);
 });

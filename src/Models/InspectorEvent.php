@@ -33,6 +33,11 @@ class InspectorEvent extends Model
         return $this->hasMany(InspectorDelivery::class, 'event_id');
     }
 
+    public function diagnostics(): HasMany
+    {
+        return $this->hasMany(InspectorDiagnostic::class, 'event_id');
+    }
+
     public function getRouteKeyName(): string
     {
         return 'stripe_event_id';

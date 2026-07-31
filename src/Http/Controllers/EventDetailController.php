@@ -15,6 +15,7 @@ class EventDetailController extends Controller
             'event' => $event,
             'deliveries' => $deliveries,
             'latestDelivery' => $deliveries->first(),
+            'diagnostics' => $event->diagnostics()->orderByDesc('created_at')->get(),
         ]);
     }
 }

@@ -36,6 +36,7 @@ class RecordWebhookReceived
             ]);
 
             $capture->deliveryId = $delivery->id;
+            $capture->eventId = $inspectorEvent->id;
         } catch (Throwable $e) {
             Log::warning('Cashier Inspector failed to record a received webhook.', [
                 'exception' => $e,

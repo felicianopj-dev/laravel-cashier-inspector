@@ -70,10 +70,61 @@
     </dl>
 
     <h2>Diagnosis</h2>
-    <p class="placeholder">Diagnostic rules are not implemented yet. This section will explain what happened and why it matters once the diagnostic engine lands.</p>
+    @if ($diagnostics->isEmpty())
+        <p class="placeholder">No diagnostic rules are registered yet — this package doesn't ship any built in. Register your own via the `cashier-inspector.diagnostics.rules` config to see findings here.</p>
+    @else
+        @foreach ($diagnostics as $diagnostic)
+            <div class="exception">
+                <span class="badge severity-{{ $diagnostic->severity->value }}">{{ ucfirst($diagnostic->severity->value) }}</span>
+                <strong>{{ $diagnostic->title }}</strong>
+                <p>{{ $diagnostic->message }}</p>
+            </div>
+        @endforeach
+    @endif
 
     <h2>Suggested checks</h2>
-    <p class="placeholder">No suggested checks yet — these will list practical steps once diagnostic rules are available.</p>
+    @php $suggestedChecks = $diagnostics->flatMap(fn ($diagnostic) => $diagnostic->context['suggested_checks'] ?? [])->unique(); @endphp
+    @if ($suggestedChecks->isEmpty())
+        <p class="placeholder">No suggested checks yet — these will list practical steps once a triggered diagnostic rule provides them.</p>
+    @else
+        <ul>
+            @foreach ($suggestedChecks as $check)
+                <li>{{ $check }}</li>
+            @endforeach
+        </ul>
+    @endif
+
+    <h2>Diagnostic rules</h2>
+    @if ($diagnostics->isEmpty())
+        <p class="placeholder">No diagnostic rules have triggered for this event.</p>
+    @else
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Severity</th>
+                    <th>Rule</th>
+                    <th>Context</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($diagnostics as $diagnostic)
+                    <tr>
+                        <td><code>{{ $diagnostic->code }}</code></td>
+                        <td><span class="badge severity-{{ $diagnostic->severity->value }}">{{ ucfirst($diagnostic->severity->value) }}</span></td>
+                        <td><code>{{ class_basename($diagnostic->rule) }}</code></td>
+                        <td>
+                            @if ($diagnostic->context)
+                                <pre class="payload">{{ json_encode($diagnostic->context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                            @else
+                                —
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
 
     <h2>Processing timeline</h2>
     @if ($latestDelivery)

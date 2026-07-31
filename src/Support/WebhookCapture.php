@@ -13,6 +13,8 @@ final class WebhookCapture
 
     public ?int $deliveryId = null;
 
+    public ?int $eventId = null;
+
     public EventStatus $status = EventStatus::Received;
 
     public function __construct(

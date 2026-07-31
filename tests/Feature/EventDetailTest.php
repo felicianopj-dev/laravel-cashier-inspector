@@ -114,6 +114,46 @@ it('shows the redacted payload when it was stored', function () {
         ->assertSee('Show payload (redacted)');
 });
 
+it('shows a placeholder when no diagnostics have triggered', function () {
+    $event = InspectorEvent::create([
+        'stripe_event_id' => 'evt_detail_no_diagnostics',
+        'stripe_event_type' => 'customer.updated',
+        'livemode' => false,
+    ]);
+
+    $this->get("cashier-inspector/events/{$event->stripe_event_id}")
+        ->assertOk()
+        ->assertSee('No diagnostic rules are registered yet')
+        ->assertSee('No diagnostic rules have triggered for this event.')
+        ->assertSee('No suggested checks yet');
+});
+
+it('shows triggered diagnostics, their severity, and suggested checks', function () {
+    $event = InspectorEvent::create([
+        'stripe_event_id' => 'evt_detail_diagnostics',
+        'stripe_event_type' => 'customer.updated',
+        'livemode' => false,
+    ]);
+
+    $event->diagnostics()->create([
+        'rule' => 'FelicianoPJ\\CashierInspector\\Diagnostics\\Rules\\ExampleRule',
+        'code' => 'example_code',
+        'severity' => Severity::Warning,
+        'title' => 'Example finding',
+        'message' => 'Something worth checking.',
+        'context' => ['suggested_checks' => ['Check Stripe dashboard for details.']],
+        'created_at' => now(),
+    ]);
+
+    $this->get("cashier-inspector/events/{$event->stripe_event_id}")
+        ->assertOk()
+        ->assertSee('Example finding')
+        ->assertSee('Something worth checking.')
+        ->assertSee('example_code')
+        ->assertSee('ExampleRule')
+        ->assertSee('Check Stripe dashboard for details.');
+});
+
 it('links the dashboard event id to its detail page', function () {
     $event = InspectorEvent::create([
         'stripe_event_id' => 'evt_detail_linked',

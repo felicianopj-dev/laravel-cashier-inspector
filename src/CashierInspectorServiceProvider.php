@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector;
 
+use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
 use FelicianoPJ\CashierInspector\Http\Middleware\RecordWebhookOutcome;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookHandled;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookReceived;
@@ -35,6 +36,13 @@ class CashierInspectorServiceProvider extends ServiceProvider
         $this->app->singleton(PayloadRedactor::class, fn ($app) => new PayloadRedactor(
             paths: $app['config']->get('cashier-inspector.redaction.paths', []),
             enabled: $app['config']->get('cashier-inspector.redaction.enabled', true),
+        ));
+
+        $this->app->singleton(DiagnosticEngine::class, fn ($app) => new DiagnosticEngine(
+            rules: array_map(
+                fn (string $rule) => $app->make($rule),
+                $app['config']->get('cashier-inspector.diagnostics.rules', [])
+            ),
         ));
     }
 

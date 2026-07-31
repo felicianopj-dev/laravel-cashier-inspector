@@ -33,6 +33,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Diagnostics
+    |--------------------------------------------------------------------------
+    |
+    | FQCNs of FelicianoPJ\CashierInspector\Contracts\DiagnosticRule
+    | implementations, run against every event after each delivery attempt
+    | resolves. Empty until the built-in rules are added; add your own
+    | classes here to extend the engine.
+    */
+
+    'diagnostics' => [
+        'rules' => [
+            //
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Redaction
     |--------------------------------------------------------------------------
     */

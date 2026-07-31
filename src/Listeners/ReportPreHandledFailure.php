@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector\Listeners;
 
+use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
@@ -19,8 +20,10 @@ use Throwable;
  */
 class ReportPreHandledFailure
 {
-    public function __construct(protected WebhookCaptureContext $context)
-    {
+    public function __construct(
+        protected WebhookCaptureContext $context,
+        protected DiagnosticEngine $diagnostics,
+    ) {
     }
 
     public function __invoke(Throwable $e): void
@@ -61,6 +64,10 @@ class ReportPreHandledFailure
             Log::warning('Cashier Inspector failed to record a failed webhook.', [
                 'exception' => $recordingException,
             ]);
+
+            return;
         }
+
+        $this->diagnostics->runForEventId($capture->eventId);
     }
 }
