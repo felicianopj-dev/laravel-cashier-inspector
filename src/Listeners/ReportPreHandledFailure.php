@@ -2,10 +2,14 @@
 
 namespace FelicianoPJ\CashierInspector\Listeners;
 
+use FelicianoPJ\CashierInspector\Enums\EventStatus;
+use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use FelicianoPJ\CashierInspector\Support\CashierWebhookRoute;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use FelicianoPJ\CashierInspector\Support\WebhookFailure;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -25,11 +29,38 @@ class ReportPreHandledFailure
             return;
         }
 
+        $occurredAt = Carbon::now();
+
         $this->context->recordFailure(new WebhookFailure(
             exceptionClass: get_class($e),
             exceptionMessage: $e->getMessage(),
             exceptionTrace: $e->getTraceAsString(),
-            occurredAt: Carbon::now(),
+            occurredAt: $occurredAt,
         ));
+
+        $capture = $this->context->current();
+
+        if (! $capture || $capture->status !== EventStatus::Received || ! $capture->deliveryId) {
+            return;
+        }
+
+        $capture->markFailed($occurredAt);
+
+        try {
+            InspectorDelivery::whereKey($capture->deliveryId)->update([
+                'status' => EventStatus::Failed,
+                'severity' => Severity::Error,
+                'duration_ms' => $capture->durationMs,
+                'exception_class' => get_class($e),
+                'exception_message' => $e->getMessage(),
+                'exception_trace' => config('cashier-inspector.storage.store_exception_traces')
+                    ? $e->getTraceAsString()
+                    : null,
+            ]);
+        } catch (Throwable $recordingException) {
+            Log::warning('Cashier Inspector failed to record a failed webhook.', [
+                'exception' => $recordingException,
+            ]);
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector\Support;
 
+use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use Illuminate\Support\Carbon;
 
 final class WebhookCapture
@@ -9,6 +10,10 @@ final class WebhookCapture
     public ?Carbon $handledAt = null;
 
     public ?int $durationMs = null;
+
+    public ?int $deliveryId = null;
+
+    public EventStatus $status = EventStatus::Received;
 
     public function __construct(
         public readonly string $stripeEventId,
@@ -36,5 +41,17 @@ final class WebhookCapture
     {
         $this->handledAt = $handledAt;
         $this->durationMs = (int) $this->receivedAt->diffInMilliseconds($handledAt);
+        $this->status = EventStatus::Handled;
+    }
+
+    public function markFailed(Carbon $occurredAt): void
+    {
+        $this->durationMs = (int) $this->receivedAt->diffInMilliseconds($occurredAt);
+        $this->status = EventStatus::Failed;
+    }
+
+    public function markUnmatched(): void
+    {
+        $this->status = EventStatus::Unmatched;
     }
 }

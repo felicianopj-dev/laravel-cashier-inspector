@@ -3,10 +3,15 @@
 namespace FelicianoPJ\CashierInspector\Http\Middleware;
 
 use Closure;
+use FelicianoPJ\CashierInspector\Enums\EventStatus;
+use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use FelicianoPJ\CashierInspector\Support\CashierWebhookRoute;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Terminating middleware, pushed onto the global HTTP kernel stack so it
@@ -32,6 +37,43 @@ class RecordWebhookOutcome
             return;
         }
 
-        $this->context->recordTerminatedStatus($response->getStatusCode());
+        $status = $response->getStatusCode();
+        $this->context->recordTerminatedStatus($status);
+
+        $capture = $this->context->current();
+
+        if (! $capture || $capture->status !== EventStatus::Received || ! $capture->deliveryId) {
+            return;
+        }
+
+        try {
+            if ($status >= 200 && $status < 300) {
+                // Received but no WebhookHandled: Cashier had no handler
+                // method for this event type and returned early.
+                $capture->markUnmatched();
+
+                InspectorDelivery::whereKey($capture->deliveryId)->update([
+                    'status' => EventStatus::Unmatched,
+                    'severity' => Severity::Info,
+                ]);
+
+                return;
+            }
+
+            // Fallback: the request ended abnormally but the exception
+            // reporting hook didn't record it (e.g. a fatal error).
+            $capture->markFailed(now());
+
+            InspectorDelivery::whereKey($capture->deliveryId)->update([
+                'status' => EventStatus::Failed,
+                'severity' => Severity::Error,
+                'duration_ms' => $capture->durationMs,
+                'exception_message' => "Webhook request ended with HTTP status {$status} without a matching exception report.",
+            ]);
+        } catch (Throwable $e) {
+            Log::warning('Cashier Inspector failed to record a webhook outcome.', [
+                'exception' => $e,
+            ]);
+        }
     }
 }
