@@ -55,4 +55,22 @@ class InspectorDelivery extends Model
                 });
         });
     }
+
+    /**
+     * When this delivery was resolved (handled, failed, or unmatched).
+     * handled_at only gets set on the success path; failed/unmatched
+     * deliveries only store a duration, so it's derived from that instead.
+     */
+    public function resolvedAt(): ?Carbon
+    {
+        if ($this->handled_at) {
+            return $this->handled_at;
+        }
+
+        if ($this->duration_ms !== null && $this->received_at) {
+            return $this->received_at->clone()->addMilliseconds($this->duration_ms);
+        }
+
+        return null;
+    }
 }

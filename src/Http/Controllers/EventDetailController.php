@@ -1,0 +1,20 @@
+<?php
+
+namespace FelicianoPJ\CashierInspector\Http\Controllers;
+
+use FelicianoPJ\CashierInspector\Models\InspectorEvent;
+use Illuminate\Routing\Controller;
+
+class EventDetailController extends Controller
+{
+    public function __invoke(InspectorEvent $event)
+    {
+        $deliveries = $event->deliveries()->orderByDesc('received_at')->get();
+
+        return view('cashier-inspector::event', [
+            'event' => $event,
+            'deliveries' => $deliveries,
+            'latestDelivery' => $deliveries->first(),
+        ]);
+    }
+}

@@ -32,4 +32,9 @@ class InspectorEvent extends Model
     {
         return $this->hasMany(InspectorDelivery::class, 'event_id');
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'stripe_event_id';
+    }
 }

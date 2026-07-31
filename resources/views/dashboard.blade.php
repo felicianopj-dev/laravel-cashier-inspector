@@ -11,6 +11,8 @@
         th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; font-size: 0.875rem; }
         th { text-transform: uppercase; font-size: 0.7rem; color: #666; letter-spacing: 0.03em; }
         code { font-size: 0.8rem; }
+        td a { color: #2563eb; text-decoration: none; }
+        td a:hover { text-decoration: underline; }
         .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
         .severity-error { background: #fde2e2; color: #9b1c1c; }
         .severity-warning { background: #fef3c7; color: #92400e; }
@@ -85,7 +87,7 @@
                         </td>
                         <td>{{ ucfirst($delivery->status->value) }}</td>
                         <td>{{ $delivery->event->stripe_event_type }}</td>
-                        <td><code>{{ $delivery->event->stripe_event_id }}</code></td>
+                        <td><a href="{{ route('cashier-inspector.events.show', $delivery->event) }}"><code>{{ $delivery->event->stripe_event_id }}</code></a></td>
                         <td>{{ $delivery->event->customer_id ?? '—' }}</td>
                         <td>{{ $delivery->event->subscription_id ?? '—' }}</td>
                         <td>{{ $delivery->event->livemode ? 'Live' : 'Test' }}</td>
