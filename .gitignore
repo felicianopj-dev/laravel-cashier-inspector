@@ -7,3 +7,8 @@ composer.lock
 .phpunit.result.cache
 .env
 .DS_Store
+
+workbench/database/database.sqlite
+workbench/storage
+workbench/bootstrap/cache/*
+!workbench/bootstrap/cache/.gitkeep
