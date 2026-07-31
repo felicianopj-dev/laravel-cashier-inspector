@@ -17,17 +17,39 @@
         .severity-info { background: #dbeafe; color: #1e40af; }
         .severity-success { background: #dcfce7; color: #166534; }
         .empty { padding: 2rem 0; color: #666; }
-        .toolbar { display: flex; justify-content: space-between; align-items: center; }
+        .toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         .toolbar a { color: #2563eb; text-decoration: none; font-size: 0.875rem; }
+        .controls { display: flex; align-items: center; gap: 1rem; font-size: 0.8125rem; color: #444; }
+        .controls button { font: inherit; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0; }
+        .banner { margin-top: 1rem; padding: 0.6rem 1rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.375rem; font-size: 0.875rem; color: #1e40af; }
+        .banner button { font: inherit; font-weight: 600; color: #1e40af; background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
         .pagination { margin-top: 1rem; }
+        [x-cloak] { display: none !important; }
     </style>
 </head>
-<body>
+<body x-data="dashboardPolling({
+        latestId: {{ $latestId }},
+        intervalMs: {{ $pollingIntervalMs }},
+        autoRefresh: @js($pollingEnabled),
+        problemsOnly: @js($problemsOnly),
+        endpoint: '{{ route('cashier-inspector.api.events') }}',
+    })">
     <div class="toolbar">
         <h1>Cashier Inspector</h1>
-        <a href="{{ request()->fullUrlWithQuery(['all' => $problemsOnly ? '1' : null]) }}">
-            {{ $problemsOnly ? 'Show all events' : 'Show problems only' }}
-        </a>
+        <div class="controls">
+            <a href="{{ request()->fullUrlWithQuery(['all' => $problemsOnly ? '1' : null]) }}">
+                {{ $problemsOnly ? 'Show all events' : 'Show problems only' }}
+            </a>
+            <span>Auto refresh: <button type="button" @click="toggleAutoRefresh()" x-text="autoRefresh ? 'On' : 'Off'"></button></span>
+            <span>Last checked: <span x-text="secondsAgoLabel()"></span></span>
+            <button type="button" @click="refreshNow()">Refresh</button>
+        </div>
+    </div>
+
+    <div class="banner" x-show="pendingCount > 0" x-cloak>
+        <span x-text="pendingCount"></span>
+        <span x-text="pendingCount === 1 ? 'new event' : 'new events'"></span>
+        — <button type="button" @click="loadNew()">Load</button>
     </div>
 
     @if ($deliveries->isEmpty())
@@ -78,5 +100,103 @@
             {{ $deliveries->links() }}
         </div>
     @endif
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('dashboardPolling', (config) => ({
+                latestId: config.latestId,
+                intervalMs: config.intervalMs,
+                autoRefresh: config.autoRefresh,
+                problemsOnly: config.problemsOnly,
+                endpoint: config.endpoint,
+                pendingCount: 0,
+                lastCheckedAt: Date.now(),
+                secondsAgo: 0,
+                timer: null,
+                tickTimer: null,
+
+                init() {
+                    this.scheduleNext();
+
+                    this.tickTimer = setInterval(() => {
+                        this.secondsAgo = Math.floor((Date.now() - this.lastCheckedAt) / 1000);
+                    }, 1000);
+
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.hidden) {
+                            this.clearTimer();
+                        } else {
+                            this.scheduleNext();
+                        }
+                    });
+                },
+
+                clearTimer() {
+                    if (this.timer) {
+                        clearTimeout(this.timer);
+                        this.timer = null;
+                    }
+                },
+
+                scheduleNext() {
+                    this.clearTimer();
+
+                    if (!this.autoRefresh || document.hidden) {
+                        return;
+                    }
+
+                    this.timer = setTimeout(() => this.poll(), this.intervalMs);
+                },
+
+                toggleAutoRefresh() {
+                    this.autoRefresh = !this.autoRefresh;
+
+                    if (this.autoRefresh) {
+                        this.poll();
+                    } else {
+                        this.clearTimer();
+                    }
+                },
+
+                refreshNow() {
+                    this.poll();
+                },
+
+                loadNew() {
+                    window.location.reload();
+                },
+
+                secondsAgoLabel() {
+                    return this.secondsAgo <= 1 ? 'just now' : `${this.secondsAgo} seconds ago`;
+                },
+
+                async poll() {
+                    const params = new URLSearchParams({ after: this.latestId });
+
+                    if (!this.problemsOnly) {
+                        params.set('all', '1');
+                    }
+
+                    try {
+                        const response = await fetch(`${this.endpoint}?${params.toString()}`, {
+                            headers: { Accept: 'application/json' },
+                        });
+
+                        const data = await response.json();
+
+                        this.pendingCount += data.events.length;
+                        this.latestId = data.latest_id;
+                    } catch (e) {
+                        // Silent: a failed poll is simply retried on the next tick.
+                    } finally {
+                        this.lastCheckedAt = Date.now();
+                        this.secondsAgo = 0;
+                        this.scheduleNext();
+                    }
+                },
+            }));
+        });
+    </script>
+    <script defer src="{{ route('cashier-inspector.assets.alpine') }}"></script>
 </body>
 </html>
