@@ -11,6 +11,10 @@ class WebhookCaptureContext
 {
     protected ?WebhookCapture $current = null;
 
+    protected ?WebhookFailure $failure = null;
+
+    protected ?int $terminatedStatus = null;
+
     public function start(WebhookCapture $capture): void
     {
         $this->current = $capture;
@@ -24,5 +28,34 @@ class WebhookCaptureContext
     public function current(): ?WebhookCapture
     {
         return $this->current;
+    }
+
+    /**
+     * Record an exception reported while handling what looks like a
+     * Cashier webhook request, from the exception reporting hook.
+     */
+    public function recordFailure(WebhookFailure $failure): void
+    {
+        $this->failure = $failure;
+    }
+
+    public function failure(): ?WebhookFailure
+    {
+        return $this->failure;
+    }
+
+    /**
+     * Record the final response status for a Cashier webhook request, from
+     * the terminating middleware. Reliable fallback signal for abnormal
+     * endings that the exception reporting hook didn't observe.
+     */
+    public function recordTerminatedStatus(int $status): void
+    {
+        $this->terminatedStatus = $status;
+    }
+
+    public function terminatedStatus(): ?int
+    {
+        return $this->terminatedStatus;
     }
 }

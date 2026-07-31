@@ -2,13 +2,18 @@
 
 namespace FelicianoPJ\CashierInspector;
 
+use FelicianoPJ\CashierInspector\Http\Middleware\RecordWebhookOutcome;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookHandled;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookReceived;
+use FelicianoPJ\CashierInspector\Listeners\ReportPreHandledFailure;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Events\WebhookHandled;
 use Laravel\Cashier\Events\WebhookReceived;
+use Throwable;
 
 class CashierInspectorServiceProvider extends ServiceProvider
 {
@@ -37,5 +42,24 @@ class CashierInspectorServiceProvider extends ServiceProvider
 
         Event::listen(WebhookReceived::class, RecordWebhookReceived::class);
         Event::listen(WebhookHandled::class, RecordWebhookHandled::class);
+
+        $this->registerPreHandledFailureCapture();
+    }
+
+    protected function registerPreHandledFailureCapture(): void
+    {
+        $exceptionHandler = $this->app->make(ExceptionHandler::class);
+
+        if (method_exists($exceptionHandler, 'reportable')) {
+            $exceptionHandler->reportable(
+                fn (Throwable $e) => $this->app->make(ReportPreHandledFailure::class)($e)
+            );
+        }
+
+        $httpKernel = $this->app->make(HttpKernel::class);
+
+        if (method_exists($httpKernel, 'pushMiddleware')) {
+            $httpKernel->pushMiddleware(RecordWebhookOutcome::class);
+        }
     }
 }
