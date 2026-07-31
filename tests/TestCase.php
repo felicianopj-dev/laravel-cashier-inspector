@@ -36,5 +36,7 @@ class TestCase extends Orchestra
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
+
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
     }
 }

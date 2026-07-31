@@ -22,6 +22,10 @@ class CashierInspectorServiceProvider extends ServiceProvider
 
     protected string $migrationsPath = __DIR__.'/../database/migrations';
 
+    protected string $routesPath = __DIR__.'/../routes/web.php';
+
+    protected string $viewsPath = __DIR__.'/../resources/views';
+
     public function register(): void
     {
         $this->mergeConfigFrom($this->configPath, 'cashier-inspector');
@@ -45,6 +49,9 @@ class CashierInspectorServiceProvider extends ServiceProvider
                 $this->migrationsPath => $this->app->databasePath('migrations'),
             ], 'cashier-inspector-migrations');
         }
+
+        $this->loadRoutesFrom($this->routesPath);
+        $this->loadViewsFrom($this->viewsPath, 'cashier-inspector');
 
         Event::listen(WebhookReceived::class, RecordWebhookReceived::class);
         Event::listen(WebhookHandled::class, RecordWebhookHandled::class);
