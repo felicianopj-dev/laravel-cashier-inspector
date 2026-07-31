@@ -38,13 +38,16 @@ return [
     |
     | FQCNs of FelicianoPJ\CashierInspector\Contracts\DiagnosticRule
     | implementations, run against every event after each delivery attempt
-    | resolves. Empty until the built-in rules are added; add your own
-    | classes here to extend the engine.
+    | resolves. Add your own classes here to extend the engine.
     */
 
     'diagnostics' => [
         'rules' => [
-            //
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule::class,
         ],
     ],
 

@@ -1,13 +1,24 @@
 <?php
 
 use FelicianoPJ\CashierInspector\CashierInspectorServiceProvider;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule;
 
 it('merges the package config', function () {
     expect(config('cashier-inspector.path'))->toBe('cashier-inspector')
         ->and(config('cashier-inspector.middleware'))->toBe(['web'])
         ->and(config('cashier-inspector.polling.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.polling.interval_ms'))->toBe(5000)
-        ->and(config('cashier-inspector.diagnostics.rules'))->toBe([])
+        ->and(config('cashier-inspector.diagnostics.rules'))->toBe([
+            MissingWebhookSecretRule::class,
+            ProcessingExceptionRule::class,
+            UnhandledWebhookRule::class,
+            DuplicateDeliveryRule::class,
+            TestLiveModeMismatchRule::class,
+        ])
         ->and(config('cashier-inspector.redaction.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.storage.retention_days'))->toBe(7);
 });
