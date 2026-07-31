@@ -3,6 +3,7 @@
 namespace FelicianoPJ\CashierInspector\Http\Controllers;
 
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
+use FelicianoPJ\CashierInspector\Support\DeliveryFilters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -10,19 +11,18 @@ use Illuminate\Support\Carbon;
 
 /**
  * Backs the dashboard's polling loop: deliveries newer than the last known
- * id, filtered the same way as the currently displayed table (problems
- * only vs. all).
+ * id, filtered identically to the currently displayed table.
  */
 class EventPollController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
         $after = (int) $request->integer('after');
-        $problemsOnly = ! $request->boolean('all');
+        $filters = DeliveryFilters::fromRequest($request);
 
-        $query = InspectorDelivery::query()
-            ->with('event')
-            ->when($problemsOnly, fn ($query) => $query->problemsOnly());
+        $query = $filters->apply(
+            InspectorDelivery::query()->with('event')
+        );
 
         $deliveries = (clone $query)
             ->where('id', '>', $after)

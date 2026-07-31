@@ -3,6 +3,7 @@
 namespace FelicianoPJ\CashierInspector\Http\Controllers;
 
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
+use FelicianoPJ\CashierInspector\Support\DeliveryFilters;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -16,11 +17,11 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        $problemsOnly = ! $request->boolean('all');
+        $filters = DeliveryFilters::fromRequest($request);
 
-        $query = InspectorDelivery::query()
-            ->with('event')
-            ->when($problemsOnly, fn ($query) => $query->problemsOnly());
+        $query = $filters->apply(
+            InspectorDelivery::query()->with('event')
+        );
 
         $deliveries = (clone $query)
             ->orderByDesc('received_at')
@@ -29,7 +30,7 @@ class DashboardController extends Controller
 
         return view('cashier-inspector::dashboard', [
             'deliveries' => $deliveries,
-            'problemsOnly' => $problemsOnly,
+            'filters' => $filters,
             'latestId' => (clone $query)->max('id') ?? 0,
             'pollingEnabled' => (bool) config('cashier-inspector.polling.enabled'),
             'pollingIntervalMs' => max(

@@ -25,6 +25,12 @@
         .controls button { font: inherit; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0; }
         .banner { margin-top: 1rem; padding: 0.6rem 1rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.375rem; font-size: 0.875rem; color: #1e40af; }
         .banner button { font: inherit; font-weight: 600; color: #1e40af; background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
+        .filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin-top: 1.25rem; padding: 0.75rem 1rem; background: #f9fafb; border: 1px solid #e5e5e5; border-radius: 0.375rem; }
+        .filters .field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.75rem; color: #666; }
+        .filters input, .filters select { font-size: 0.8125rem; padding: 0.3rem 0.4rem; border: 1px solid #d1d5db; border-radius: 0.25rem; }
+        .filters .actions { display: flex; gap: 0.75rem; align-items: center; }
+        .filters button { font: inherit; padding: 0.35rem 0.75rem; background: #2563eb; color: #fff; border: none; border-radius: 0.25rem; cursor: pointer; font-size: 0.8125rem; }
+        .filters .clear { color: #666; font-size: 0.8125rem; text-decoration: none; }
         .pagination { margin-top: 1rem; }
         [x-cloak] { display: none !important; }
     </style>
@@ -33,20 +39,92 @@
         latestId: {{ $latestId }},
         intervalMs: {{ $pollingIntervalMs }},
         autoRefresh: @js($pollingEnabled),
-        problemsOnly: @js($problemsOnly),
+        filters: @js($filters->queryParams()),
         endpoint: '{{ route('cashier-inspector.api.events') }}',
     })">
     <div class="toolbar">
         <h1>Cashier Inspector</h1>
         <div class="controls">
-            <a href="{{ request()->fullUrlWithQuery(['all' => $problemsOnly ? '1' : null]) }}">
-                {{ $problemsOnly ? 'Show all events' : 'Show problems only' }}
+            <a href="{{ request()->fullUrlWithQuery(['all' => $filters->problemsOnly ? '1' : null]) }}">
+                {{ $filters->problemsOnly ? 'Show all events' : 'Show problems only' }}
             </a>
             <span>Auto refresh: <button type="button" @click="toggleAutoRefresh()" x-text="autoRefresh ? 'On' : 'Off'"></button></span>
             <span>Last checked: <span x-text="secondsAgoLabel()"></span></span>
             <button type="button" @click="refreshNow()">Refresh</button>
         </div>
     </div>
+
+    <form class="filters" method="GET">
+        @if ($filters->problemsOnly)
+            <input type="hidden" name="all" value="">
+        @else
+            <input type="hidden" name="all" value="1">
+        @endif
+
+        <div class="field">
+            <label for="filter-search">Search</label>
+            <input type="text" id="filter-search" name="search" value="{{ $filters->search }}" placeholder="evt_, cus_, sub_...">
+        </div>
+
+        <div class="field">
+            <label for="filter-severity">Severity</label>
+            <select id="filter-severity" name="severity">
+                <option value="">Any</option>
+                @foreach (['info', 'success', 'warning', 'error'] as $value)
+                    <option value="{{ $value }}" @selected($filters->severity === $value)>{{ ucfirst($value) }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="filter-status">Status</label>
+            <select id="filter-status" name="status">
+                <option value="">Any</option>
+                @foreach (['received', 'processing', 'handled', 'failed', 'unmatched'] as $value)
+                    <option value="{{ $value }}" @selected($filters->status === $value)>{{ ucfirst($value) }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="filter-event-type">Event type</label>
+            <input type="text" id="filter-event-type" name="event_type" value="{{ $filters->eventType }}" placeholder="customer.subscription.updated">
+        </div>
+
+        <div class="field">
+            <label for="filter-mode">Mode</label>
+            <select id="filter-mode" name="mode">
+                <option value="">Any</option>
+                <option value="test" @selected($filters->mode === 'test')>Test</option>
+                <option value="live" @selected($filters->mode === 'live')>Live</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="filter-customer">Customer ID</label>
+            <input type="text" id="filter-customer" name="customer_id" value="{{ $filters->customerId }}" placeholder="cus_...">
+        </div>
+
+        <div class="field">
+            <label for="filter-subscription">Subscription ID</label>
+            <input type="text" id="filter-subscription" name="subscription_id" value="{{ $filters->subscriptionId }}" placeholder="sub_...">
+        </div>
+
+        <div class="field">
+            <label for="filter-from">From</label>
+            <input type="date" id="filter-from" name="from" value="{{ $filters->from }}">
+        </div>
+
+        <div class="field">
+            <label for="filter-to">To</label>
+            <input type="date" id="filter-to" name="to" value="{{ $filters->to }}">
+        </div>
+
+        <div class="actions">
+            <button type="submit">Apply filters</button>
+            <a class="clear" href="{{ request()->url() }}">Clear</a>
+        </div>
+    </form>
 
     <div class="banner" x-show="pendingCount > 0" x-cloak>
         <span x-text="pendingCount"></span>
@@ -56,7 +134,7 @@
 
     @if ($deliveries->isEmpty())
         <p class="empty">
-            @if ($problemsOnly)
+            @if ($filters->problemsOnly)
                 No problems detected.
             @else
                 No webhook deliveries captured yet.
@@ -109,7 +187,7 @@
                 latestId: config.latestId,
                 intervalMs: config.intervalMs,
                 autoRefresh: config.autoRefresh,
-                problemsOnly: config.problemsOnly,
+                filters: config.filters,
                 endpoint: config.endpoint,
                 pendingCount: 0,
                 lastCheckedAt: Date.now(),
@@ -173,11 +251,7 @@
                 },
 
                 async poll() {
-                    const params = new URLSearchParams({ after: this.latestId });
-
-                    if (!this.problemsOnly) {
-                        params.set('all', '1');
-                    }
+                    const params = new URLSearchParams({ after: this.latestId, ...this.filters });
 
                     try {
                         const response = await fetch(`${this.endpoint}?${params.toString()}`, {
