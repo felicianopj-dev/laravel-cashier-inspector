@@ -50,11 +50,12 @@ class RecordWebhookOutcome
             if ($status >= 200 && $status < 300) {
                 // Received but no WebhookHandled: Cashier had no handler
                 // method for this event type and returned early.
-                $capture->markUnmatched();
+                $capture->markUnmatched(now());
 
                 InspectorDelivery::whereKey($capture->deliveryId)->update([
                     'status' => EventStatus::Unmatched,
                     'severity' => Severity::Info,
+                    'duration_ms' => $capture->durationMs,
                 ]);
 
                 return;

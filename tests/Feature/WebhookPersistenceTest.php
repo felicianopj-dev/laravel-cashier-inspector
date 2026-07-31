@@ -117,5 +117,6 @@ it('marks the delivery unmatched when Cashier has no handler for the event type'
     $delivery = InspectorEvent::where('stripe_event_id', 'evt_unmatched')->sole()->deliveries()->sole();
 
     expect($delivery->status)->toBe(EventStatus::Unmatched)
-        ->and($delivery->severity)->toBe(Severity::Info);
+        ->and($delivery->severity)->toBe(Severity::Info)
+        ->and($delivery->duration_ms)->toBeGreaterThanOrEqual(0);
 });

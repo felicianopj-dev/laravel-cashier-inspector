@@ -50,8 +50,9 @@ final class WebhookCapture
         $this->status = EventStatus::Failed;
     }
 
-    public function markUnmatched(): void
+    public function markUnmatched(Carbon $occurredAt): void
     {
+        $this->durationMs = (int) $this->receivedAt->diffInMilliseconds($occurredAt);
         $this->status = EventStatus::Unmatched;
     }
 }
