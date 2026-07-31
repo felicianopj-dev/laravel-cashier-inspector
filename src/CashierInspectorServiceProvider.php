@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector;
 
+use FelicianoPJ\CashierInspector\Console\PruneCommand;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
 use FelicianoPJ\CashierInspector\Http\Middleware\RecordWebhookOutcome;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookHandled;
@@ -56,6 +57,10 @@ class CashierInspectorServiceProvider extends ServiceProvider
             $this->publishesMigrations([
                 $this->migrationsPath => $this->app->databasePath('migrations'),
             ], 'cashier-inspector-migrations');
+
+            $this->commands([
+                PruneCommand::class,
+            ]);
         }
 
         $this->loadRoutesFrom($this->routesPath);
