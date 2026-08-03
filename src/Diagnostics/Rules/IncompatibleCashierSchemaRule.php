@@ -46,7 +46,11 @@ class IncompatibleCashierSchemaRule implements DiagnosticRule
         );
     }
 
-    protected function missingPieces()
+    /**
+     * Exposed publicly so cashier-inspector:install can reuse the same
+     * check instead of duplicating it.
+     */
+    public function missingPieces()
     {
         $missing = collect();
 

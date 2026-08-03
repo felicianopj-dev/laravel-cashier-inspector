@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector;
 
+use FelicianoPJ\CashierInspector\Console\InstallCommand;
 use FelicianoPJ\CashierInspector\Console\PruneCommand;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
 use FelicianoPJ\CashierInspector\Http\Middleware\RecordWebhookOutcome;
@@ -59,6 +60,7 @@ class CashierInspectorServiceProvider extends ServiceProvider
             ], 'cashier-inspector-migrations');
 
             $this->commands([
+                InstallCommand::class,
                 PruneCommand::class,
             ]);
         }
