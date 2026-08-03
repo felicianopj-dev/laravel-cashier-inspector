@@ -48,7 +48,12 @@ return [
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule::class,
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule::class,
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\SlowProcessingRule::class,
         ],
+
+        'slow_processing_threshold_ms' => env('CASHIER_INSPECTOR_SLOW_PROCESSING_THRESHOLD_MS', 5000),
     ],
 
     /*

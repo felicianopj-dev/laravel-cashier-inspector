@@ -1,13 +1,17 @@
 <?php
 
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\SlowProcessingRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
+use Laravel\Cashier\Subscription;
 
 $makeEvent = function (array $overrides = []): InspectorEvent {
     static $counter = 0;
@@ -146,4 +150,109 @@ it('does not support when no Stripe key is configured', function () use ($makeEv
     config()->set('cashier.secret', null);
 
     expect((new TestLiveModeMismatchRule)->supports($makeEvent()))->toBeFalse();
+});
+
+// MissingLocalSubscriptionRule
+
+it('warns when the event subscription id has no matching local subscription', function () use ($makeEvent) {
+    $event = $makeEvent(['subscription_id' => 'sub_missing']);
+
+    $rule = new MissingLocalSubscriptionRule;
+
+    expect($rule->supports($event))->toBeTrue();
+
+    $result = $rule->diagnose($event);
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('missing_local_subscription')
+        ->and($result->context)->toBe(['subscription_id' => 'sub_missing']);
+});
+
+it('passes when the event subscription id has a matching local subscription', function () use ($makeEvent) {
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Sub Owner',
+        'email' => 'sub-owner@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_present',
+        'stripe_status' => 'active',
+    ]);
+
+    $result = (new MissingLocalSubscriptionRule)->diagnose($makeEvent(['subscription_id' => 'sub_present']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('does not support an event without a subscription id', function () use ($makeEvent) {
+    expect((new MissingLocalSubscriptionRule)->supports($makeEvent()))->toBeFalse();
+});
+
+// IncompatibleCashierSchemaRule
+
+it('passes when Cashier\'s schema has the expected tables and columns', function () use ($makeEvent) {
+    $result = (new IncompatibleCashierSchemaRule)->diagnose($makeEvent());
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('flags a missing Cashier table', function () use ($makeEvent) {
+    Illuminate\Support\Facades\Schema::drop('subscription_items');
+
+    $result = (new IncompatibleCashierSchemaRule)->diagnose($makeEvent());
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('cashier_schema_incompatible')
+        ->and($result->context['missing'])->toContain('subscription_items table');
+});
+
+// SlowProcessingRule
+
+it('warns when processing duration exceeds the configured threshold', function () use ($makeEvent) {
+    config()->set('cashier-inspector.diagnostics.slow_processing_threshold_ms', 1000);
+
+    $event = $makeEvent();
+    $event->deliveries()->create([
+        'status' => EventStatus::Handled,
+        'severity' => Severity::Success,
+        'received_at' => now(),
+        'duration_ms' => 2500,
+    ]);
+    $event->refresh();
+
+    $rule = new SlowProcessingRule;
+
+    expect($rule->supports($event))->toBeTrue();
+
+    $result = $rule->diagnose($event);
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('slow_processing')
+        ->and($result->context)->toBe(['duration_ms' => 2500, 'threshold_ms' => 1000]);
+});
+
+it('passes when processing duration is within the threshold', function () use ($makeEvent) {
+    config()->set('cashier-inspector.diagnostics.slow_processing_threshold_ms', 5000);
+
+    $event = $makeEvent();
+    $event->deliveries()->create([
+        'status' => EventStatus::Handled,
+        'severity' => Severity::Success,
+        'received_at' => now(),
+        'duration_ms' => 120,
+    ]);
+    $event->refresh();
+
+    expect((new SlowProcessingRule)->diagnose($event)->isTriggered())->toBeFalse();
+});
+
+it('does not support a delivery without a recorded duration', function () use ($makeEvent) {
+    $event = $makeEvent();
+    $event->deliveries()->create(['status' => EventStatus::Received, 'received_at' => now()]);
+    $event->refresh();
+
+    expect((new SlowProcessingRule)->supports($event))->toBeFalse();
 });

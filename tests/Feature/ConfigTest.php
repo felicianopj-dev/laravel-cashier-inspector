@@ -2,8 +2,11 @@
 
 use FelicianoPJ\CashierInspector\CashierInspectorServiceProvider;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\SlowProcessingRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule;
 
@@ -18,7 +21,11 @@ it('merges the package config', function () {
             UnhandledWebhookRule::class,
             DuplicateDeliveryRule::class,
             TestLiveModeMismatchRule::class,
+            MissingLocalSubscriptionRule::class,
+            IncompatibleCashierSchemaRule::class,
+            SlowProcessingRule::class,
         ])
+        ->and(config('cashier-inspector.diagnostics.slow_processing_threshold_ms'))->toBe(5000)
         ->and(config('cashier-inspector.redaction.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.storage.retention_days'))->toBe(7);
 });
