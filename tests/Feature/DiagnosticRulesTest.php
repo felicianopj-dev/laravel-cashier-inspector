@@ -2,6 +2,7 @@
 
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingBillableModelRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule;
@@ -255,4 +256,34 @@ it('does not support a delivery without a recorded duration', function () use ($
     $event->refresh();
 
     expect((new SlowProcessingRule)->supports($event))->toBeFalse();
+});
+
+// MissingBillableModelRule
+
+it('warns when the event customer id has no resolved local billable model', function () use ($makeEvent) {
+    $event = $makeEvent(['customer_id' => 'cus_no_billable']);
+
+    $rule = new MissingBillableModelRule;
+
+    expect($rule->supports($event))->toBeTrue();
+
+    $result = $rule->diagnose($event);
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('missing_billable_model')
+        ->and($result->context)->toBe(['customer_id' => 'cus_no_billable']);
+});
+
+it('passes when the event has a resolved local billable model', function () use ($makeEvent) {
+    $event = $makeEvent([
+        'customer_id' => 'cus_has_billable',
+        'billable_type' => 'Workbench\\App\\Models\\User',
+        'billable_id' => 1,
+    ]);
+
+    expect((new MissingBillableModelRule)->diagnose($event)->isTriggered())->toBeFalse();
+});
+
+it('does not support an event without a customer id', function () use ($makeEvent) {
+    expect((new MissingBillableModelRule)->supports($makeEvent()))->toBeFalse();
 });

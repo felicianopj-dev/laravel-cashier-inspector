@@ -4,6 +4,7 @@ namespace FelicianoPJ\CashierInspector\Listeners;
 
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
+use FelicianoPJ\CashierInspector\Support\BillableResolver;
 use FelicianoPJ\CashierInspector\Support\StripeEventAttributes;
 use FelicianoPJ\CashierInspector\Support\WebhookCapture;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
@@ -16,6 +17,7 @@ class RecordWebhookReceived
     public function __construct(
         protected WebhookCaptureContext $context,
         protected StripeEventAttributes $attributes,
+        protected BillableResolver $billable,
     ) {
     }
 
@@ -25,9 +27,12 @@ class RecordWebhookReceived
         $this->context->start($capture);
 
         try {
+            $attributes = $this->attributes->extract($event->payload);
+            $attributes += $this->billable->resolve($attributes['customer_id']);
+
             $inspectorEvent = InspectorEvent::updateOrCreate(
                 ['stripe_event_id' => $capture->stripeEventId],
-                $this->attributes->extract($event->payload)
+                $attributes
             );
 
             $delivery = $inspectorEvent->deliveries()->create([

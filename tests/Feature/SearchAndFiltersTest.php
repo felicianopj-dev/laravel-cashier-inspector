@@ -52,6 +52,22 @@ it('finds an event by customer id via search', function () use ($makeDelivery) {
         ->assertDontSee('evt_unrelated');
 });
 
+it('finds an event by local billable model id via search', function () use ($makeDelivery) {
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_by_billable', 'billable_type' => 'Workbench\\App\\Models\\User', 'billable_id' => 42],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_other_billable', 'billable_type' => 'Workbench\\App\\Models\\User', 'billable_id' => 7],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+
+    $this->get('cashier-inspector?all=1&search=42')
+        ->assertOk()
+        ->assertSee('evt_by_billable')
+        ->assertDontSee('evt_other_billable');
+});
+
 it('filters by severity', function () use ($makeDelivery) {
     $makeDelivery(['stripe_event_id' => 'evt_warn'], ['status' => EventStatus::Failed, 'severity' => Severity::Warning]);
     $makeDelivery(['stripe_event_id' => 'evt_err'], ['status' => EventStatus::Failed, 'severity' => Severity::Error]);

@@ -3,6 +3,7 @@
 use FelicianoPJ\CashierInspector\CashierInspectorServiceProvider;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingBillableModelRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule;
@@ -24,6 +25,7 @@ it('merges the package config', function () {
             MissingLocalSubscriptionRule::class,
             IncompatibleCashierSchemaRule::class,
             SlowProcessingRule::class,
+            MissingBillableModelRule::class,
         ])
         ->and(config('cashier-inspector.diagnostics.slow_processing_threshold_ms'))->toBe(5000)
         ->and(config('cashier-inspector.redaction.enabled'))->toBeTrue()

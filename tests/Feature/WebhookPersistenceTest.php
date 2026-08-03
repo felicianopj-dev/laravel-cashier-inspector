@@ -4,8 +4,10 @@ use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
+use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Events\WebhookHandled;
 use Laravel\Cashier\Events\WebhookReceived;
+use Workbench\App\Models\User;
 
 $subscriptionUpdatedPayload = fn (string $eventId = 'evt_sub_updated'): array => [
     'id' => $eventId,
@@ -37,6 +39,39 @@ it('creates an event and a received delivery when WebhookReceived is dispatched'
 
     expect($delivery->status)->toBe(EventStatus::Received)
         ->and($delivery->received_at)->not->toBeNull();
+});
+
+it('resolves and stores the local billable model for the event customer', function () use ($subscriptionUpdatedPayload) {
+    Cashier::useCustomerModel(User::class);
+
+    $user = User::create([
+        'name' => 'Jane',
+        'email' => 'jane@example.com',
+        'password' => 'secret',
+    ]);
+    $user->forceFill(['stripe_id' => 'cus_123'])->save();
+
+    event(new WebhookReceived($subscriptionUpdatedPayload('evt_with_billable')));
+
+    $event = InspectorEvent::where('stripe_event_id', 'evt_with_billable')->sole();
+
+    expect($event->billable_type)->toBe(User::class)
+        ->and($event->billable_id)->toBe($user->id);
+
+    Cashier::useCustomerModel('App\Models\User');
+});
+
+it('leaves billable fields null when no local billable model matches', function () use ($subscriptionUpdatedPayload) {
+    Cashier::useCustomerModel(User::class);
+
+    event(new WebhookReceived($subscriptionUpdatedPayload('evt_without_billable')));
+
+    $event = InspectorEvent::where('stripe_event_id', 'evt_without_billable')->sole();
+
+    expect($event->billable_type)->toBeNull()
+        ->and($event->billable_id)->toBeNull();
+
+    Cashier::useCustomerModel('App\Models\User');
 });
 
 it('marks the delivery handled once WebhookHandled is dispatched', function () use ($subscriptionUpdatedPayload) {

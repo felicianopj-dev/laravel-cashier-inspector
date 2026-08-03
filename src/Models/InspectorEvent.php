@@ -46,10 +46,11 @@ class InspectorEvent extends Model
 
     /**
      * Matches the identifiers a developer would typically paste in
-     * (evt_/cus_/sub_/invoice/checkout id). Billable model id and email
-     * search are not implemented: billable_id/billable_type are never
-     * populated yet (Cashier::findBillable() resolution isn't wired up),
-     * and email isn't extracted into a queryable column at all.
+     * (evt_/cus_/sub_/invoice/checkout id, or a local billable model id
+     * now that BillableResolver populates billable_id/billable_type).
+     * Billable email search still isn't implemented: email isn't
+     * extracted into a queryable column, and billable_type is polymorphic
+     * (no single table to join against), so it needs its own design.
      */
     public function scopeSearch(Builder $query, string $term): Builder
     {
@@ -58,7 +59,8 @@ class InspectorEvent extends Model
                 ->orWhere('customer_id', 'like', "%{$term}%")
                 ->orWhere('subscription_id', 'like', "%{$term}%")
                 ->orWhere('invoice_id', 'like', "%{$term}%")
-                ->orWhere('checkout_session_id', 'like', "%{$term}%");
+                ->orWhere('checkout_session_id', 'like', "%{$term}%")
+                ->orWhere('billable_id', 'like', "%{$term}%");
         });
     }
 }

@@ -51,6 +51,7 @@ return [
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule::class,
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule::class,
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\SlowProcessingRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingBillableModelRule::class,
         ],
 
         'slow_processing_threshold_ms' => env('CASHIER_INSPECTOR_SLOW_PROCESSING_THRESHOLD_MS', 5000),
