@@ -20,8 +20,14 @@ jobs:
         laravel: ['11.*', '12.*']
         stability: [prefer-lowest, prefer-stable]
         include:
+          # orchestra/testbench-core 9.0-9.9.x has a real bug: the
+          # "@testbench" path alias never gets expanded when resolving the
+          # bootstrap cache / compiled views paths, so any command that
+          # touches them (including our own composer.json's
+          # post-autoload-dump script) fails with "The @testbench/... must
+          # be present and writable." Fixed upstream by 9.10.0.
           - laravel: '11.*'
-            testbench: '9.*'
+            testbench: '^9.10'
           - laravel: '12.*'
             testbench: '10.*'
 
