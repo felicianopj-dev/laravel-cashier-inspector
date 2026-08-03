@@ -28,13 +28,29 @@
         .exception pre { white-space: pre-wrap; font-size: 0.75rem; margin: 0.5rem 0 0; }
         pre.payload { background: #0b1021; color: #d1d5db; padding: 1rem; border-radius: 0.375rem; overflow-x: auto; font-size: 0.8rem; }
         summary { cursor: pointer; font-size: 0.875rem; color: #2563eb; }
+        button.copy-report { font-size: 0.8rem; padding: 0.4rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background: #fff; cursor: pointer; }
+        button.copy-report:hover { background: #f9fafb; }
+        [x-cloak] { display: none !important; }
     </style>
 </head>
 <body>
     <a class="back" href="{{ route('cashier-inspector.dashboard') }}">&larr; Back to dashboard</a>
 
     <h1>{{ $event->stripe_event_type }}</h1>
-    <p><code>{{ $event->stripe_event_id }}</code> &middot; {{ $event->livemode ? 'Live mode' : 'Test mode' }}</p>
+    <p>
+        <code>{{ $event->stripe_event_id }}</code> &middot; {{ $event->livemode ? 'Live mode' : 'Test mode' }}
+        &middot;
+        <span x-data="{ copied: false, report: @js($report) }">
+            <button
+                type="button"
+                class="copy-report"
+                @click="navigator.clipboard.writeText(report); copied = true; setTimeout(() => copied = false, 2000)"
+            >
+                <span x-show="!copied">Copy diagnostic report</span>
+                <span x-show="copied" x-cloak>Copied!</span>
+            </button>
+        </span>
+    </p>
 
     <h2>Summary</h2>
     <dl>
@@ -199,5 +215,7 @@
     @else
         <p class="placeholder">Payload storage is disabled ({{ config('cashier-inspector.storage.store_payloads') ? 'no payload was captured for this event' : 'storage.store_payloads is off' }}).</p>
     @endif
+
+    <script defer src="{{ route('cashier-inspector.assets.alpine') }}"></script>
 </body>
 </html>

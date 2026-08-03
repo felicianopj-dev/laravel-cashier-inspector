@@ -50,7 +50,9 @@ it('shows the summary and processing timeline for the latest delivery', function
         ->assertSee('sub_1')
         ->assertSee('120 ms')
         ->assertSee('Event received')
-        ->assertSee('Event handled');
+        ->assertSee('Event handled')
+        ->assertSee('Copy diagnostic report')
+        ->assertSee('Stripe Event: evt_detail_1');
 });
 
 it('lists every delivery attempt for a redelivered event', function () {
