@@ -1,6 +1,7 @@
 <?php
 
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateDeliveryRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateSubscriptionTypeRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingBillableModelRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule;
@@ -286,4 +287,117 @@ it('passes when the event has a resolved local billable model', function () use 
 
 it('does not support an event without a customer id', function () use ($makeEvent) {
     expect((new MissingBillableModelRule)->supports($makeEvent()))->toBeFalse();
+});
+
+// DuplicateSubscriptionTypeRule
+
+it('passes when a single valid subscription exists for a type', function () use ($makeEvent) {
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Solo Sub',
+        'email' => 'solo-sub@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_solo',
+        'stripe_status' => 'active',
+    ]);
+
+    $result = (new DuplicateSubscriptionTypeRule)->diagnose($makeEvent(['subscription_id' => 'sub_solo']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('warns when two active subscriptions share the same type', function () use ($makeEvent) {
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Dup Sub',
+        'email' => 'dup-sub@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_dup_1',
+        'stripe_status' => 'active',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_dup_2',
+        'stripe_status' => 'active',
+    ]);
+
+    $result = (new DuplicateSubscriptionTypeRule)->diagnose($makeEvent(['subscription_id' => 'sub_dup_1']));
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('duplicate_subscription_type')
+        ->and($result->context['type'])->toBe('default')
+        ->and($result->context['subscription_ids'])->toEqualCanonicalizing(['sub_dup_1', 'sub_dup_2']);
+});
+
+it('does not count a canceled subscription as a duplicate', function () use ($makeEvent) {
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Resub',
+        'email' => 'resub@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_old_canceled',
+        'stripe_status' => 'canceled',
+        'ends_at' => now()->subDay(),
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_new_active',
+        'stripe_status' => 'active',
+    ]);
+
+    $result = (new DuplicateSubscriptionTypeRule)->diagnose($makeEvent(['subscription_id' => 'sub_new_active']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('does not treat different subscription types as duplicates', function () use ($makeEvent) {
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Multi Type',
+        'email' => 'multi-type@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_type_a',
+        'stripe_status' => 'active',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'swimming',
+        'stripe_id' => 'sub_type_b',
+        'stripe_status' => 'active',
+    ]);
+
+    $result = (new DuplicateSubscriptionTypeRule)->diagnose($makeEvent(['subscription_id' => 'sub_type_a']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('passes when the event subscription id has no matching local subscription', function () use ($makeEvent) {
+    $result = (new DuplicateSubscriptionTypeRule)->diagnose($makeEvent(['subscription_id' => 'sub_unknown']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('does not support a duplicate-type check without a subscription id', function () use ($makeEvent) {
+    expect((new DuplicateSubscriptionTypeRule)->supports($makeEvent()))->toBeFalse();
 });
