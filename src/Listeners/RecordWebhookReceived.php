@@ -24,7 +24,18 @@ class RecordWebhookReceived
     public function handle(WebhookReceived $event): void
     {
         $capture = WebhookCapture::fromPayload($event->payload);
+
+        // Always started, even with nothing to capture: that clears any
+        // capture left over from an earlier request in a long-running
+        // worker, so the handled/failed listeners can't attach this
+        // request's outcome to the previous request's delivery.
         $this->context->start($capture);
+
+        if (! $capture) {
+            Log::warning('Cashier Inspector skipped a webhook payload with no usable event id or type.');
+
+            return;
+        }
 
         try {
             $attributes = $this->attributes->extract($event->payload);

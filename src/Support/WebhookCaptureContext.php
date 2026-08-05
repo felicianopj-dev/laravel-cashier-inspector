@@ -15,7 +15,13 @@ class WebhookCaptureContext
 
     protected ?int $terminatedStatus = null;
 
-    public function start(WebhookCapture $capture): void
+    /**
+     * Accepts null so the receiving listener can start every webhook
+     * request unconditionally, including ones it couldn't capture. This
+     * container binding is a singleton, so in a long-running worker that
+     * null is what stops a previous request's capture from lingering.
+     */
+    public function start(?WebhookCapture $capture): void
     {
         $this->current = $capture;
     }

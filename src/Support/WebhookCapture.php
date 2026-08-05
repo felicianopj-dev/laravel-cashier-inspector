@@ -27,8 +27,19 @@ final class WebhookCapture
     ) {
     }
 
-    public static function fromPayload(array $payload): self
+    /**
+     * Returns null for a payload this package can't identify. Cashier's
+     * controller reads $payload['type'] before dispatching WebhookReceived
+     * but never touches $payload['id'], so an id-less payload does reach
+     * the listener — and capturing it must not be what breaks the webhook
+     * request, the same way every other capture failure doesn't.
+     */
+    public static function fromPayload(array $payload): ?self
     {
+        if (! is_string($payload['id'] ?? null) || ! is_string($payload['type'] ?? null)) {
+            return null;
+        }
+
         return new self(
             stripeEventId: $payload['id'],
             stripeEventType: $payload['type'],

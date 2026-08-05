@@ -155,3 +155,30 @@ it('marks the delivery unmatched when Cashier has no handler for the event type'
         ->and($delivery->severity)->toBe(Severity::Info)
         ->and($delivery->duration_ms)->toBeGreaterThanOrEqual(0);
 });
+
+it('ignores a payload with no stripe event id instead of breaking the webhook request', function () {
+    event(new WebhookReceived(['type' => 'customer.subscription.updated', 'livemode' => false]));
+
+    expect(InspectorEvent::count())->toBe(0)
+        ->and(InspectorDelivery::count())->toBe(0);
+});
+
+it('ignores a payload whose event id is not a string', function () {
+    event(new WebhookReceived(['id' => ['nested'], 'type' => 'customer.subscription.updated']));
+
+    expect(InspectorEvent::count())->toBe(0);
+});
+
+it('does not attach a later outcome to a previous request\'s delivery', function () use ($subscriptionUpdatedPayload) {
+    event(new WebhookReceived($subscriptionUpdatedPayload('evt_first')));
+
+    $delivery = InspectorEvent::where('stripe_event_id', 'evt_first')->sole()->deliveries()->sole();
+
+    // Second request: nothing capturable, so the first request's capture
+    // must not still be the current one when WebhookHandled fires.
+    event(new WebhookReceived(['type' => 'customer.subscription.updated']));
+    event(new WebhookHandled(['type' => 'customer.subscription.updated']));
+
+    expect($delivery->fresh()->status)->toBe(EventStatus::Received)
+        ->and($delivery->fresh()->handled_at)->toBeNull();
+});
