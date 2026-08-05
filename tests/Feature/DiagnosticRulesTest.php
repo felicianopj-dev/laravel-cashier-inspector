@@ -16,6 +16,8 @@ use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use Laravel\Cashier\Subscription;
+use Stripe\ApiRequestor;
+use Stripe\HttpClient\CurlClient;
 use Stripe\Subscription as StripeSubscription;
 
 $makeEvent = function (array $overrides = []): InspectorEvent {
@@ -591,4 +593,63 @@ it('passes a price check when the event subscription id has no local match', fun
     $result = (new SubscriptionPriceMismatchRule)->diagnose($makeEvent(['subscription_id' => 'sub_unknown_price']));
 
     expect($result->isTriggered())->toBeFalse();
+});
+
+/*
+ * Stripe's HTTP client is process-wide global state shared with the host
+ * application, so the two tests below pin the one behaviour that keeps
+ * these checks from leaking their timeout into everyone else's calls.
+ */
+
+afterEach(function () {
+    ApiRequestor::setHttpClient(null);
+});
+
+it('restores the application\'s stripe http client after a live check', function () {
+    $appClient = new CurlClient();
+    ApiRequestor::setHttpClient($appClient);
+
+    $rule = new class extends SubscriptionStatusMismatchRule
+    {
+        public function fetch(Subscription $subscription): StripeSubscription
+        {
+            return $this->liveSubscription($subscription);
+        }
+    };
+
+    $subscription = new class extends Subscription
+    {
+        public function asStripeSubscription(array $expand = [])
+        {
+            return StripeSubscription::constructFrom(['id' => 'sub_live', 'status' => 'active']);
+        }
+    };
+
+    $rule->fetch($subscription);
+
+    expect(ApiRequestor::httpClient())->toBe($appClient);
+});
+
+it('restores the application\'s stripe http client even when the live check throws', function () {
+    $appClient = new CurlClient();
+    ApiRequestor::setHttpClient($appClient);
+
+    $rule = new class extends SubscriptionStatusMismatchRule
+    {
+        public function fetch(Subscription $subscription): StripeSubscription
+        {
+            return $this->liveSubscription($subscription);
+        }
+    };
+
+    $subscription = new class extends Subscription
+    {
+        public function asStripeSubscription(array $expand = [])
+        {
+            throw new RuntimeException('Stripe is unreachable.');
+        }
+    };
+
+    expect(fn () => $rule->fetch($subscription))->toThrow(RuntimeException::class);
+    expect(ApiRequestor::httpClient())->toBe($appClient);
 });

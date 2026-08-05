@@ -23,12 +23,23 @@ trait ChecksLiveStripeSubscription
     }
 
     /**
-     * ponytail: stripe-php has no per-call timeout, only a process-wide
-     * default HTTP client (Stripe\ApiRequestor::setHttpClient()). Acceptable
-     * here since this is the only code path in the package making a live
-     * Stripe call inline during webhook handling. Upgrade path: drop this
-     * once stripe-php supports a scoped client, or if a host app's own
-     * Stripe calls need a different timeout than this package's checks.
+     * stripe-php has no per-call timeout, only a process-wide default HTTP
+     * client (Stripe\ApiRequestor::setHttpClient()), so applying one here
+     * means reaching into global state the host application also uses. The
+     * previous client is captured and restored around the call: without
+     * that, enabling these checks would silently force every later Stripe
+     * call in the process — Cashier's own, and the application's — onto
+     * this package's timeout, and would keep doing so for the life of an
+     * Octane or queue worker.
+     *
+     * ApiRequestor::httpClient() lazily installs the shared default client
+     * when nothing was set, so the restore is a no-op in that case rather
+     * than clearing a client someone else configured.
+     *
+     * ponytail: still process-wide for the duration of the call itself, so
+     * a concurrent Stripe call in the same process (Octane, fibers) can see
+     * this timeout. Upgrade path: drop all of this once stripe-php supports
+     * a scoped per-request client.
      */
     protected function liveSubscription(Subscription $subscription): StripeSubscription
     {
@@ -37,8 +48,14 @@ trait ChecksLiveStripeSubscription
         $client = new CurlClient();
         $client->setTimeout($timeout);
         $client->setConnectTimeout($timeout);
+
+        $previous = ApiRequestor::httpClient();
         ApiRequestor::setHttpClient($client);
 
-        return $subscription->asStripeSubscription();
+        try {
+            return $subscription->asStripeSubscription();
+        } finally {
+            ApiRequestor::setHttpClient($previous);
+        }
     }
 }
