@@ -4,6 +4,8 @@ use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use FelicianoPJ\CashierInspector\Support\DeliveryFilters;
+use Laravel\Cashier\Cashier;
+use Workbench\App\Models\User;
 
 $makeDelivery = function (array $eventOverrides, array $deliveryOverrides = []) {
     static $counter = 0;
@@ -24,6 +26,10 @@ $makeDelivery = function (array $eventOverrides, array $deliveryOverrides = []) 
 beforeEach(function () {
     config()->set('cashier-inspector.enabled', true);
     $this->app['env'] = 'local';
+});
+
+afterEach(function () {
+    Cashier::useCustomerModel('App\Models\User');
 });
 
 it('finds an event by a partial stripe event id via search', function () use ($makeDelivery) {
@@ -179,4 +185,71 @@ it('ignores an unparseable date filter instead of erroring', function () use ($m
     $this->get('cashier-inspector?all=1&from=not-a-date')
         ->assertOk()
         ->assertSee('evt_bad_date');
+});
+
+it('finds an event by local billable email via search', function () use ($makeDelivery) {
+    Cashier::useCustomerModel(User::class);
+
+    $jane = User::create(['name' => 'Jane', 'email' => 'jane@example.com', 'password' => 'secret']);
+    $bob = User::create(['name' => 'Bob', 'email' => 'bob@example.com', 'password' => 'secret']);
+
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_jane', 'billable_type' => User::class, 'billable_id' => $jane->id],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_bob', 'billable_type' => User::class, 'billable_id' => $bob->id],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+
+    $this->get('cashier-inspector?all=1&search=jane@example.com')
+        ->assertOk()
+        ->assertSee('evt_jane')
+        ->assertDontSee('evt_bob');
+});
+
+it('finds an event by a partial local billable email via search', function () use ($makeDelivery) {
+    Cashier::useCustomerModel(User::class);
+
+    $jane = User::create(['name' => 'Jane', 'email' => 'jane@example.com', 'password' => 'secret']);
+    $bob = User::create(['name' => 'Bob', 'email' => 'bob@other.test', 'password' => 'secret']);
+
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_partial_jane', 'billable_type' => User::class, 'billable_id' => $jane->id],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_partial_bob', 'billable_type' => User::class, 'billable_id' => $bob->id],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+
+    $this->get('cashier-inspector?all=1&search=example.com')
+        ->assertOk()
+        ->assertSee('evt_partial_jane')
+        ->assertDontSee('evt_partial_bob');
+});
+
+it('does not match an event whose billable_type is not the configured customer model', function () use ($makeDelivery) {
+    Cashier::useCustomerModel(User::class);
+
+    $jane = User::create(['name' => 'Jane', 'email' => 'jane@example.com', 'password' => 'secret']);
+
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_other_type', 'billable_type' => 'App\\Models\\Team', 'billable_id' => $jane->id],
+        ['status' => EventStatus::Failed, 'severity' => Severity::Error]
+    );
+
+    $this->get('cashier-inspector?all=1&search=jane@example.com')
+        ->assertOk()
+        ->assertDontSee('evt_other_type');
+});
+
+it('still searches identifiers when the customer model class does not exist', function () use ($makeDelivery) {
+    Cashier::useCustomerModel('App\Models\User');
+
+    $makeDelivery(['stripe_event_id' => 'evt_no_model'], ['status' => EventStatus::Failed, 'severity' => Severity::Error]);
+
+    $this->get('cashier-inspector?all=1&search=evt_no_model')
+        ->assertOk()
+        ->assertSee('evt_no_model');
 });

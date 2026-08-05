@@ -47,6 +47,13 @@ By default it shows problems only — errors, warnings, unmatched events, and
 processing that's taking too long — with filters and search to see
 everything else.
 
+Search matches Stripe event, customer, subscription, invoice, and checkout
+session ids, the local billable model id, and the local billable email.
+Email searching works even though emails are redacted out of stored
+payloads: the term is matched against your own customer table, so no copy
+of the address has to be kept here. Only the model configured through
+Cashier (`Cashier::useCustomerModel()`) is searched, on its `email` column.
+
 Every event page includes a "Copy diagnostic report" button that generates
 a sanitized, plain-text summary suitable for pasting into a GitHub issue,
 Discord, support, or an LLM.
