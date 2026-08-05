@@ -4,9 +4,12 @@ namespace FelicianoPJ\CashierInspector\Diagnostics\Rules\Concerns;
 
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use Laravel\Cashier\Subscription;
+use ReflectionProperty;
 use Stripe\ApiRequestor;
+use Stripe\HttpClient\ClientInterface;
 use Stripe\HttpClient\CurlClient;
 use Stripe\Subscription as StripeSubscription;
+use Throwable;
 
 /**
  * Shared fetch logic for diagnostic rules that compare local Cashier state
@@ -49,13 +52,31 @@ trait ChecksLiveStripeSubscription
         $client->setTimeout($timeout);
         $client->setConnectTimeout($timeout);
 
-        $previous = ApiRequestor::httpClient();
+        $previous = $this->currentStripeHttpClient();
         ApiRequestor::setHttpClient($client);
 
         try {
             return $subscription->asStripeSubscription();
         } finally {
             ApiRequestor::setHttpClient($previous);
+        }
+    }
+
+    /**
+     * stripe-php only made ApiRequestor::httpClient() publicly readable
+     * after 16.2, which is the lowest release Cashier ^15 allows, so the
+     * currently installed client is read off the private static instead.
+     *
+     * Returning null on failure is safe: setHttpClient(null) restores
+     * stripe-php's own lazily created default client, which is what an
+     * application that never configured one was using anyway.
+     */
+    protected function currentStripeHttpClient(): ?ClientInterface
+    {
+        try {
+            return (new ReflectionProperty(ApiRequestor::class, '_httpClient'))->getValue();
+        } catch (Throwable) {
+            return null;
         }
     }
 }

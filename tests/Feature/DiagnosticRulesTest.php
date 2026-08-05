@@ -599,13 +599,18 @@ it('passes a price check when the event subscription id has no local match', fun
  * Stripe's HTTP client is process-wide global state shared with the host
  * application, so the two tests below pin the one behaviour that keeps
  * these checks from leaking their timeout into everyone else's calls.
+ *
+ * Read through reflection rather than ApiRequestor::httpClient(): that
+ * accessor is private on stripe-php 16.2, the lowest release Cashier ^15
+ * allows, and only became publicly readable later.
  */
+$installedHttpClient = fn () => (new ReflectionProperty(ApiRequestor::class, '_httpClient'))->getValue();
 
 afterEach(function () {
     ApiRequestor::setHttpClient(null);
 });
 
-it('restores the application\'s stripe http client after a live check', function () {
+it('restores the application\'s stripe http client after a live check', function () use ($installedHttpClient) {
     $appClient = new CurlClient();
     ApiRequestor::setHttpClient($appClient);
 
@@ -627,10 +632,10 @@ it('restores the application\'s stripe http client after a live check', function
 
     $rule->fetch($subscription);
 
-    expect(ApiRequestor::httpClient())->toBe($appClient);
+    expect($installedHttpClient())->toBe($appClient);
 });
 
-it('restores the application\'s stripe http client even when the live check throws', function () {
+it('restores the application\'s stripe http client even when the live check throws', function () use ($installedHttpClient) {
     $appClient = new CurlClient();
     ApiRequestor::setHttpClient($appClient);
 
@@ -651,5 +656,5 @@ it('restores the application\'s stripe http client even when the live check thro
     };
 
     expect(fn () => $rule->fetch($subscription))->toThrow(RuntimeException::class);
-    expect(ApiRequestor::httpClient())->toBe($appClient);
+    expect($installedHttpClient())->toBe($appClient);
 });
