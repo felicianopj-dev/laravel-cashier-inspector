@@ -88,6 +88,13 @@ Cashier Inspector never modifies Laravel Cashier's own tables — it only
 reads from them for diagnostics, and writes to its own
 `cashier_inspector_*` tables.
 
+Two diagnostic rules (local/Stripe subscription status and price mismatch)
+compare local Cashier state against a live fetch from Stripe. This is
+opt-in and off by default (`CASHIER_INSPECTOR_STRIPE_API_CHECKS`), since
+enabling it makes a live Stripe API call — synchronously, during webhook
+processing — using your configured Stripe credentials, which introduces a
+network dependency and consumes API quota.
+
 ## Retention
 
 Old events, deliveries, and diagnostics can be pruned:

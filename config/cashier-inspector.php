@@ -53,9 +53,29 @@ return [
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\SlowProcessingRule::class,
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingBillableModelRule::class,
             \FelicianoPJ\CashierInspector\Diagnostics\Rules\DuplicateSubscriptionTypeRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\SubscriptionStatusMismatchRule::class,
+            \FelicianoPJ\CashierInspector\Diagnostics\Rules\SubscriptionPriceMismatchRule::class,
         ],
 
         'slow_processing_threshold_ms' => env('CASHIER_INSPECTOR_SLOW_PROCESSING_THRESHOLD_MS', 5000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stripe API checks
+    |--------------------------------------------------------------------------
+    |
+    | Some diagnostic rules (subscription status/price mismatch) compare
+    | local Cashier state against a live fetch from Stripe. Disabled by
+    | default: it makes a network call to Stripe synchronously during
+    | webhook processing, consumes API quota, and requires valid Stripe
+    | credentials. Enable only if that trade-off is acceptable.
+    */
+
+    'stripe_api_checks' => [
+        'enabled' => env('CASHIER_INSPECTOR_STRIPE_API_CHECKS', false),
+
+        'timeout_seconds' => env('CASHIER_INSPECTOR_STRIPE_API_CHECKS_TIMEOUT_SECONDS', 5),
     ],
 
     /*

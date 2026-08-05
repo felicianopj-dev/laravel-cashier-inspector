@@ -8,12 +8,15 @@ use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingLocalSubscriptionRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\ProcessingExceptionRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\SlowProcessingRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\SubscriptionPriceMismatchRule;
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\SubscriptionStatusMismatchRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use Laravel\Cashier\Subscription;
+use Stripe\Subscription as StripeSubscription;
 
 $makeEvent = function (array $overrides = []): InspectorEvent {
     static $counter = 0;
@@ -400,4 +403,192 @@ it('passes when the event subscription id has no matching local subscription', f
 
 it('does not support a duplicate-type check without a subscription id', function () use ($makeEvent) {
     expect((new DuplicateSubscriptionTypeRule)->supports($makeEvent()))->toBeFalse();
+});
+
+// SubscriptionStatusMismatchRule
+
+it('does not support a status check when stripe_api_checks is disabled', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', false);
+
+    expect((new SubscriptionStatusMismatchRule)->supports($makeEvent(['subscription_id' => 'sub_1'])))->toBeFalse();
+});
+
+it('supports a status check when stripe_api_checks is enabled and a subscription id is present', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    expect((new SubscriptionStatusMismatchRule)->supports($makeEvent(['subscription_id' => 'sub_1'])))->toBeTrue();
+});
+
+it('passes when the local and live subscription status match', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Status Match',
+        'email' => 'status-match@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_status_match',
+        'stripe_status' => 'active',
+    ]);
+
+    $rule = new class extends SubscriptionStatusMismatchRule
+    {
+        protected function liveSubscription(Subscription $subscription): StripeSubscription
+        {
+            return StripeSubscription::constructFrom(['id' => $subscription->stripe_id, 'status' => 'active']);
+        }
+    };
+
+    $result = $rule->diagnose($makeEvent(['subscription_id' => 'sub_status_match']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('warns when the local and live subscription status differ', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Status Mismatch',
+        'email' => 'status-mismatch@example.com',
+        'password' => 'secret',
+    ]);
+
+    Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_status_mismatch',
+        'stripe_status' => 'active',
+    ]);
+
+    $rule = new class extends SubscriptionStatusMismatchRule
+    {
+        protected function liveSubscription(Subscription $subscription): StripeSubscription
+        {
+            return StripeSubscription::constructFrom(['id' => $subscription->stripe_id, 'status' => 'canceled']);
+        }
+    };
+
+    $result = $rule->diagnose($makeEvent(['subscription_id' => 'sub_status_mismatch']));
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('subscription_status_mismatch')
+        ->and($result->context)->toBe([
+            'subscription_id' => 'sub_status_mismatch',
+            'local_status_as_of_now' => 'active',
+            'stripe_status_as_of_now' => 'canceled',
+        ]);
+});
+
+it('passes a status check when the event subscription id has no local match', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    $result = (new SubscriptionStatusMismatchRule)->diagnose($makeEvent(['subscription_id' => 'sub_unknown_status']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+// SubscriptionPriceMismatchRule
+
+it('does not support a price check when stripe_api_checks is disabled', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', false);
+
+    expect((new SubscriptionPriceMismatchRule)->supports($makeEvent(['subscription_id' => 'sub_1'])))->toBeFalse();
+});
+
+it('passes when local and live subscription prices match regardless of order', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Price Match',
+        'email' => 'price-match@example.com',
+        'password' => 'secret',
+    ]);
+
+    $subscription = Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_price_match',
+        'stripe_status' => 'active',
+    ]);
+
+    $subscription->items()->create(['stripe_id' => 'si_1', 'stripe_product' => 'prod_1', 'stripe_price' => 'price_b']);
+    $subscription->items()->create(['stripe_id' => 'si_2', 'stripe_product' => 'prod_2', 'stripe_price' => 'price_a']);
+
+    $rule = new class extends SubscriptionPriceMismatchRule
+    {
+        protected function liveSubscription(Subscription $subscription): StripeSubscription
+        {
+            return StripeSubscription::constructFrom([
+                'id' => $subscription->stripe_id,
+                'items' => [
+                    'object' => 'list',
+                    'data' => [
+                        ['id' => 'si_1', 'price' => ['id' => 'price_a']],
+                        ['id' => 'si_2', 'price' => ['id' => 'price_b']],
+                    ],
+                ],
+            ]);
+        }
+    };
+
+    $result = $rule->diagnose($makeEvent(['subscription_id' => 'sub_price_match']));
+
+    expect($result->isTriggered())->toBeFalse();
+});
+
+it('warns when local and live subscription prices differ', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    $user = \Workbench\App\Models\User::create([
+        'name' => 'Price Mismatch',
+        'email' => 'price-mismatch@example.com',
+        'password' => 'secret',
+    ]);
+
+    $subscription = Subscription::create([
+        'user_id' => $user->id,
+        'type' => 'default',
+        'stripe_id' => 'sub_price_mismatch',
+        'stripe_status' => 'active',
+    ]);
+
+    $subscription->items()->create(['stripe_id' => 'si_1', 'stripe_product' => 'prod_1', 'stripe_price' => 'price_old']);
+
+    $rule = new class extends SubscriptionPriceMismatchRule
+    {
+        protected function liveSubscription(Subscription $subscription): StripeSubscription
+        {
+            return StripeSubscription::constructFrom([
+                'id' => $subscription->stripe_id,
+                'items' => [
+                    'object' => 'list',
+                    'data' => [
+                        ['id' => 'si_1', 'price' => ['id' => 'price_new']],
+                    ],
+                ],
+            ]);
+        }
+    };
+
+    $result = $rule->diagnose($makeEvent(['subscription_id' => 'sub_price_mismatch']));
+
+    expect($result->isTriggered())->toBeTrue()
+        ->and($result->code)->toBe('subscription_price_mismatch')
+        ->and($result->context)->toBe([
+            'subscription_id' => 'sub_price_mismatch',
+            'local_prices_as_of_now' => ['price_old'],
+            'stripe_prices_as_of_now' => ['price_new'],
+        ]);
+});
+
+it('passes a price check when the event subscription id has no local match', function () use ($makeEvent) {
+    config()->set('cashier-inspector.stripe_api_checks.enabled', true);
+
+    $result = (new SubscriptionPriceMismatchRule)->diagnose($makeEvent(['subscription_id' => 'sub_unknown_price']));
+
+    expect($result->isTriggered())->toBeFalse();
 });
