@@ -2,8 +2,10 @@
 
 > The diagnostic toolkit for Laravel Cashier.
 
-**Work in progress.** This package is under active early development and
-is not yet ready for use. No tagged release exists yet.
+**Early release.** `v0.1.0` is the first tagged version. It is feature
+complete for what it sets out to do, but it has not yet been used widely
+against real Stripe traffic, so the API may still change in a minor
+release while the version stays below `1.0.0`.
 
 Laravel Cashier Inspector is a local debugging and diagnostic dashboard for
 Laravel Cashier. It captures Stripe webhook processing, detects
@@ -15,10 +17,29 @@ inconsistent billing states, and explains what went wrong.
 * Laravel `^11.0 | ^12.0 | ^13.0`
 * Laravel Cashier Stripe `^15.0`
 
+Laravel 11 and 12 are covered by the test matrix, on PHP 8.2, 8.3, and 8.4,
+against both lowest and stable dependency resolutions. Laravel 13 is
+allowed and Cashier supports it, but it is not tested yet: the Pest Laravel
+plugin only gained Laravel 13 support in a major that requires PHP 8.3,
+which the matrix's PHP 8.2 lanes cannot install.
+
 ## Installation
 
+Not on Packagist yet. Add the repository to your `composer.json` first:
+
+```json
+"repositories": [
+    {
+        "type": "vcs",
+        "url": "https://github.com/felicianopj-dev/laravel-cashier-inspector"
+    }
+]
+```
+
+Then:
+
 ```bash
-composer require felicianopj/laravel-cashier-inspector --dev
+composer require felicianopj/laravel-cashier-inspector:^0.1 --dev
 php artisan cashier-inspector:install
 php artisan migrate
 ```
@@ -141,10 +162,9 @@ $schedule->command('cashier-inspector:prune')->daily();
 The retention period defaults to 7 days (`CASHIER_INSPECTOR_RETENTION_DAYS`)
 and can be overridden per run with `--days`.
 
-## Status
+## Changelog
 
-Currently building the Phase 1 MVP. Nothing here is installable or usable
-yet — check back later, or watch the repo for progress.
+See [CHANGELOG.md](CHANGELOG.md) for what shipped in each release.
 
 ## Disclaimer
 
