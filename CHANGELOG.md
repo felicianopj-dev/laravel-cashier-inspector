@@ -9,6 +9,14 @@ release.
 
 ## Unreleased
 
+### Added
+
+* Sortable dashboard columns. Clicking a column header orders by it, first
+  ascending, then flipping direction each time the active column is clicked
+  again; choosing another column replaces the previous ordering. The active
+  header shows the direction. Ordering composes with the filters and survives
+  pagination, and no column means newest first, as before.
+
 ### Fixed
 
 * The problems-only dashboard view now counts an event as a problem when a

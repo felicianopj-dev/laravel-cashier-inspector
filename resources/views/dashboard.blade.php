@@ -9,7 +9,11 @@
         h1 { font-size: 1.25rem; margin: 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
         th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; font-size: 0.875rem; }
-        th { text-transform: uppercase; font-size: 0.7rem; color: #666; letter-spacing: 0.03em; }
+        th { text-transform: uppercase; font-size: 0.7rem; color: #666; letter-spacing: 0.03em; white-space: nowrap; }
+        th a { color: inherit; text-decoration: none; }
+        th a:hover { color: #2563eb; }
+        th.sorted a { color: #1a1a1a; }
+        .sort-arrow { color: #2563eb; font-size: 0.65rem; }
         code { font-size: 0.8rem; }
         td a { color: #2563eb; text-decoration: none; }
         td a:hover { text-decoration: underline; }
@@ -64,6 +68,11 @@
         @else
             <input type="hidden" name="all" value="1">
         @endif
+
+        {{-- Keeps the chosen column ordering when filters are applied. --}}
+        @foreach ($sort->queryParams() as $name => $value)
+            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+        @endforeach
 
         <div class="field">
             <label for="filter-search">Search</label>
@@ -148,15 +157,26 @@
         <table>
             <thead>
                 <tr>
-                    <th>Severity</th>
-                    <th>Status</th>
-                    <th>Event Type</th>
-                    <th>Event ID</th>
-                    <th>Customer</th>
-                    <th>Subscription</th>
-                    <th>Mode</th>
-                    <th>Received</th>
-                    <th>Duration</th>
+                    @foreach ([
+                        'severity' => 'Severity',
+                        'status' => 'Status',
+                        'event_type' => 'Event Type',
+                        'event_id' => 'Event ID',
+                        'customer' => 'Customer',
+                        'subscription' => 'Subscription',
+                        'mode' => 'Mode',
+                        'received' => 'Received',
+                        'duration' => 'Duration',
+                    ] as $column => $label)
+                        <th @class(['sorted' => $sort->isActive($column)])>
+                            <a href="{{ request()->url() }}?{{ http_build_query(array_merge($filters->queryParams(), $sort->linkParams($column))) }}">
+                                {{ $label }}
+                                @if ($sort->isActive($column))
+                                    <span class="sort-arrow">{{ $sort->direction === 'asc' ? '▲' : '▼' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                    @endforeach
                 </tr>
             </thead>
             <tbody>

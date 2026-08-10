@@ -4,6 +4,7 @@ namespace FelicianoPJ\CashierInspector\Http\Controllers;
 
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use FelicianoPJ\CashierInspector\Support\DeliveryFilters;
+use FelicianoPJ\CashierInspector\Support\DeliverySort;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -18,19 +19,20 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $filters = DeliveryFilters::fromRequest($request);
+        $sort = DeliverySort::fromRequest($request);
 
         $query = $filters->apply(
             InspectorDelivery::query()->with('event')
         );
 
-        $deliveries = (clone $query)
-            ->orderByDesc('received_at')
+        $deliveries = $sort->apply(clone $query)
             ->paginate(25)
             ->withQueryString();
 
         return view('cashier-inspector::dashboard', [
             'deliveries' => $deliveries,
             'filters' => $filters,
+            'sort' => $sort,
             'latestId' => (clone $query)->max('id') ?? 0,
             'pollingEnabled' => (bool) config('cashier-inspector.polling.enabled'),
             'pollingIntervalMs' => max(
