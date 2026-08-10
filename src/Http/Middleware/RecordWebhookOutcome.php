@@ -41,7 +41,6 @@ class RecordWebhookOutcome
         }
 
         $status = $response->getStatusCode();
-        $this->context->recordTerminatedStatus($status);
 
         $capture = $this->context->current();
 

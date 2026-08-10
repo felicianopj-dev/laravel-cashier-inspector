@@ -8,7 +8,6 @@ use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use FelicianoPJ\CashierInspector\Support\CashierWebhookRoute;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
-use FelicianoPJ\CashierInspector\Support\WebhookFailure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -33,13 +32,6 @@ class ReportPreHandledFailure
         }
 
         $occurredAt = Carbon::now();
-
-        $this->context->recordFailure(new WebhookFailure(
-            exceptionClass: get_class($e),
-            exceptionMessage: $e->getMessage(),
-            exceptionTrace: $e->getTraceAsString(),
-            occurredAt: $occurredAt,
-        ));
 
         $capture = $this->context->current();
 
