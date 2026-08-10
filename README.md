@@ -81,6 +81,27 @@ payload is ever stored:
 * `data.object.customer_email`
 * `data.object.customer_details`
 * `data.object.metadata`
+* `data.object.email`
+* `data.object.name`
+* `data.object.phone`
+* `data.object.address`
+* `data.object.shipping`
+* `data.object.receipt_email`
+* `data.object.billing_details`
+* `data.previous_attributes.email`
+* `data.previous_attributes.name`
+* `data.previous_attributes.phone`
+* `data.previous_attributes.address`
+* `data.previous_attributes.shipping`
+* `data.previous_attributes.metadata`
+
+These cover the personal data Stripe puts on the object shapes Cashier
+receives: checkout sessions and invoices, the customer object itself, and
+charges and payment intents. `data.previous_attributes` carries the old
+values of whatever changed, so the same fields are masked there too. Note
+that a few of these keys are not always personal data — `name` is a
+product or price name on `product.*` and `price.*` events, for instance —
+and the default errs towards masking.
 
 Redaction paths are configurable and support dot-notation with wildcards.
 It can also be disabled entirely via `CASHIER_INSPECTOR_REDACTION_ENABLED`,

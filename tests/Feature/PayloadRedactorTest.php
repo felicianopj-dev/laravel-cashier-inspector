@@ -34,6 +34,37 @@ it('leaves the payload untouched when a path segment does not exist', function (
     expect($result)->toBe(['data' => ['object' => ['id' => 'evt_1']]]);
 });
 
+it('masks customer object personal data with the shipped default paths', function () {
+    $redactor = new PayloadRedactor(paths: config('cashier-inspector.redaction.paths'));
+
+    $result = $redactor->redact([
+        'data' => [
+            'object' => [
+                'id' => 'cus_1',
+                'email' => 'jane@example.com',
+                'name' => 'Jane Doe',
+                'phone' => '+15550000000',
+                'address' => ['line1' => '1 Main St'],
+            ],
+            'previous_attributes' => [
+                'email' => 'old@example.com',
+                'address' => ['line1' => '2 Old St'],
+            ],
+        ],
+    ]);
+
+    expect($result['data']['object'])->toBe([
+        'id' => 'cus_1',
+        'email' => '[redacted]',
+        'name' => '[redacted]',
+        'phone' => '[redacted]',
+        'address' => '[redacted]',
+    ])->and($result['data']['previous_attributes'])->toBe([
+        'email' => '[redacted]',
+        'address' => '[redacted]',
+    ]);
+});
+
 it('does nothing when disabled', function () {
     $redactor = new PayloadRedactor(paths: ['data.object.customer_email'], enabled: false);
 

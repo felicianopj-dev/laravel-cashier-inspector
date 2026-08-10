@@ -82,6 +82,20 @@ return [
     |--------------------------------------------------------------------------
     | Redaction
     |--------------------------------------------------------------------------
+    |
+    | Dot-paths masked out of a payload before it is stored. Segments may be
+    | "*" to match every key at that level. The defaults cover the personal
+    | data Stripe puts on the object shapes Cashier receives: checkout
+    | sessions and invoices (customer_email, customer_details), the customer
+    | object itself (email, name, phone, address), and charges and payment
+    | intents (receipt_email, billing_details). "data.previous_attributes"
+    | carries the old values of whatever changed, so the same fields are
+    | masked there too.
+    |
+    | Some of these keys are not always personal data: "name" is a product
+    | or price name on product.* and price.* events, for instance. The
+    | default errs towards masking. Trim this list if a payload you need to
+    | read is coming back over-redacted.
     */
 
     'redaction' => [
@@ -91,6 +105,19 @@ return [
             'data.object.customer_email',
             'data.object.customer_details',
             'data.object.metadata',
+            'data.object.email',
+            'data.object.name',
+            'data.object.phone',
+            'data.object.address',
+            'data.object.shipping',
+            'data.object.receipt_email',
+            'data.object.billing_details',
+            'data.previous_attributes.email',
+            'data.previous_attributes.name',
+            'data.previous_attributes.phone',
+            'data.previous_attributes.address',
+            'data.previous_attributes.shipping',
+            'data.previous_attributes.metadata',
         ],
     ],
 
