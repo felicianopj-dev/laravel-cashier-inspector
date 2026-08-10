@@ -1,5 +1,6 @@
 <?php
 
+use FelicianoPJ\CashierInspector\Diagnostics\Rules\MissingWebhookSecretRule;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
@@ -112,6 +113,61 @@ it('does not treat an informational diagnostic as a problem', function () use ($
         ->assertDontSee('evt_info_only');
 });
 
+it('does not treat an environment diagnostic as a per-event problem', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    // A missing webhook secret is diagnosed on every event, so counting it
+    // as a per-event problem would flag the whole dashboard.
+    $delivery = $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_environment_only'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $delivery->event->diagnostics()->create([
+        'rule' => MissingWebhookSecretRule::class,
+        'code' => 'webhook_secret_missing',
+        'severity' => Severity::Warning,
+        'title' => 'Stripe webhook secret is not configured',
+        'message' => 'Nothing verifies that incoming requests came from Stripe.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $this->get('cashier-inspector')
+        ->assertOk()
+        ->assertDontSee('evt_environment_only');
+});
+
+it('still shows an event that has both an environment and an event diagnostic', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    $delivery = $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_environment_plus_real'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    foreach ([
+        [MissingWebhookSecretRule::class, 'webhook_secret_missing'],
+        ['Manual', 'duplicate_delivery'],
+    ] as [$rule, $code]) {
+        $delivery->event->diagnostics()->create([
+            'rule' => $rule,
+            'code' => $code,
+            'severity' => Severity::Warning,
+            'title' => $code,
+            'message' => $code,
+            'context' => [],
+            'created_at' => now(),
+        ]);
+    }
+
+    $this->get('cashier-inspector')
+        ->assertOk()
+        ->assertSee('evt_environment_plus_real');
+});
+
 it('shows every delivery when the all filter is used', function () use ($makeDashboardDelivery) {
     config()->set('cashier-inspector.enabled', true);
     $this->app['env'] = 'local';
@@ -124,6 +180,42 @@ it('shows every delivery when the all filter is used', function () use ($makeDas
     $this->get('cashier-inspector?all=1')
         ->assertOk()
         ->assertSee('evt_success_all');
+});
+
+it('paginates with plain links rather than the Tailwind paginator view', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    foreach (range(1, 26) as $i) {
+        $makeDashboardDelivery(
+            ['stripe_event_id' => "evt_page_{$i}"],
+            ['status' => EventStatus::Unmatched, 'severity' => Severity::Info]
+        );
+    }
+
+    $response = $this->get('cashier-inspector')->assertOk();
+
+    $response->assertSee('Showing 1-25 of 26')
+        ->assertSee('Page 1 of 2')
+        ->assertSee('Next');
+
+    // The Tailwind paginator view ships inline SVG arrows sized only by
+    // utility classes this dashboard does not load, so they render huge.
+    $response->assertDontSee('<svg', false);
+});
+
+it('does not paginate a single page of results', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_single_page'],
+        ['status' => EventStatus::Unmatched, 'severity' => Severity::Info]
+    );
+
+    $this->get('cashier-inspector')
+        ->assertOk()
+        ->assertDontSee('Showing 1-1 of 1');
 });
 
 it('treats a delivery stuck as received for too long as a problem', function () use ($makeDashboardDelivery) {

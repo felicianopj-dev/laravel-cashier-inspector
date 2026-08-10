@@ -9,6 +9,28 @@ release.
 
 ## Unreleased
 
+### Fixed
+
+* The problems-only dashboard view now counts an event as a problem when a
+  diagnostic rule flagged it, not only when the delivery row itself failed.
+  Cashier handles most problem events without complaint - a duplicate
+  delivery, a missing local subscription, a missing billable model, a
+  test/live mode mismatch - so those were previously filtered out of the view
+  meant to surface them, and only unmatched events showed up.
+* Diagnostics from rules that describe the installation rather than the event
+  no longer mark every event as a problem. A missing webhook secret or an
+  incompatible Cashier schema is reported identically on every event, so
+  before this a single missing environment variable turned the problems view
+  into a list of everything ever received. Such rules now implement the new
+  `EnvironmentDiagnostic` marker interface; their findings still appear on the
+  event page and in the copied diagnostic report at full severity. Custom
+  rules that check configuration rather than events can implement it too.
+* Pagination no longer renders Laravel's Tailwind paginator view, whose inline
+  SVG arrows are sized only by utility classes this dashboard does not ship,
+  so they rendered at their intrinsic size at the bottom of the page. Replaced
+  with plain previous/next links and a result count, styled with the
+  dashboard's own CSS.
+
 ### Changed
 
 * Laravel 13 is now covered by the test matrix, on PHP 8.3 and 8.4, against

@@ -3,6 +3,7 @@
 namespace FelicianoPJ\CashierInspector\Diagnostics\Rules;
 
 use FelicianoPJ\CashierInspector\Contracts\DiagnosticRule;
+use FelicianoPJ\CashierInspector\Contracts\EnvironmentDiagnostic;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticResult;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
  * exposure is account-wide (Cashier's own migrations weren't run or are
  * outdated), not specific to any one delivery.
  */
-class IncompatibleCashierSchemaRule implements DiagnosticRule
+class IncompatibleCashierSchemaRule implements DiagnosticRule, EnvironmentDiagnostic
 {
     protected const EXPECTED = [
         'subscriptions' => ['user_id', 'type', 'stripe_id', 'stripe_status', 'stripe_price', 'quantity', 'trial_ends_at', 'ends_at'],

@@ -3,6 +3,7 @@
 namespace FelicianoPJ\CashierInspector\Diagnostics\Rules;
 
 use FelicianoPJ\CashierInspector\Contracts\DiagnosticRule;
+use FelicianoPJ\CashierInspector\Contracts\EnvironmentDiagnostic;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticResult;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 
@@ -12,7 +13,7 @@ use FelicianoPJ\CashierInspector\Models\InspectorEvent;
  * came from Stripe. Applies to every event since the exposure is
  * account-wide, not specific to any one delivery.
  */
-class MissingWebhookSecretRule implements DiagnosticRule
+class MissingWebhookSecretRule implements DiagnosticRule, EnvironmentDiagnostic
 {
     public function supports(InspectorEvent $event): bool
     {

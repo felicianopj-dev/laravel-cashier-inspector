@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector\Models;
 
+use FelicianoPJ\CashierInspector\Contracts\EnvironmentDiagnostic;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
 use Illuminate\Database\Eloquent\Builder;
@@ -55,6 +56,10 @@ class InspectorDelivery extends Model
      * delivery or a missing local subscription would otherwise be filtered
      * out of the default view - which is exactly the kind of problem this
      * package exists to surface.
+     *
+     * Diagnostics from EnvironmentDiagnostic rules are excluded, since they
+     * describe the installation rather than the event and would otherwise
+     * mark every event ever received as a problem.
      */
     public function scopeProblemsOnly(Builder $query): Builder
     {
@@ -66,9 +71,26 @@ class InspectorDelivery extends Model
                         ->where('received_at', '<', Carbon::now()->subSeconds(self::STUCK_AFTER_SECONDS));
                 })
                 ->orWhereHas('event.diagnostics', function (Builder $query) {
-                    $query->whereIn('severity', [Severity::Warning->value, Severity::Error->value]);
+                    $query->whereIn('severity', [Severity::Warning->value, Severity::Error->value])
+                        ->whereNotIn('rule', self::environmentRuleClasses());
                 });
         });
+    }
+
+    /**
+     * Configured rules whose findings describe the application's own
+     * configuration rather than the event, so their diagnostics never make
+     * an event a problem on their own. Read from config rather than
+     * hardcoded, so a custom rule can opt in the same way.
+     *
+     * @return array<int, class-string>
+     */
+    protected static function environmentRuleClasses(): array
+    {
+        return array_values(array_filter(
+            (array) config('cashier-inspector.diagnostics.rules', []),
+            fn ($rule) => is_string($rule) && is_subclass_of($rule, EnvironmentDiagnostic::class)
+        ));
     }
 
     /**
