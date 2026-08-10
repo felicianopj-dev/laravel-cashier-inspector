@@ -61,6 +61,57 @@ it('shows only problem deliveries by default', function () use ($makeDashboardDe
     $response->assertDontSee('evt_success');
 });
 
+it('treats a successful delivery with a warning diagnostic as a problem', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    // Cashier handled this one, so the delivery itself is a success. The
+    // problem lives on the event: a duplicate delivery, a missing local
+    // subscription, and the rest are all diagnosed after the fact.
+    $delivery = $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_diagnosed'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $delivery->event->diagnostics()->create([
+        'rule' => 'Manual',
+        'code' => 'duplicate_delivery',
+        'severity' => Severity::Warning,
+        'title' => 'Duplicate delivery',
+        'message' => 'Stripe delivered this event more than once.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $this->get('cashier-inspector')
+        ->assertOk()
+        ->assertSee('evt_diagnosed');
+});
+
+it('does not treat an informational diagnostic as a problem', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    $delivery = $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_info_only'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $delivery->event->diagnostics()->create([
+        'rule' => 'Manual',
+        'code' => 'informational',
+        'severity' => Severity::Info,
+        'title' => 'Nothing to worry about',
+        'message' => 'Purely informational.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $this->get('cashier-inspector')
+        ->assertOk()
+        ->assertDontSee('evt_info_only');
+});
+
 it('shows every delivery when the all filter is used', function () use ($makeDashboardDelivery) {
     config()->set('cashier-inspector.enabled', true);
     $this->app['env'] = 'local';

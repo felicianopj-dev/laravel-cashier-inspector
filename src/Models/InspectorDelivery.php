@@ -44,6 +44,18 @@ class InspectorDelivery extends Model
         return $this->belongsTo(InspectorEvent::class, 'event_id');
     }
 
+    /**
+     * A delivery counts as a problem when it failed on its own terms, when
+     * Cashier had no handler for it, when it never resolved, or when a
+     * diagnostic rule flagged the event it belongs to.
+     *
+     * That last case is why the diagnostics are consulted rather than just
+     * this row's own severity: a delivery Cashier handled successfully is
+     * recorded as a success, so an event whose only problem is a duplicate
+     * delivery or a missing local subscription would otherwise be filtered
+     * out of the default view - which is exactly the kind of problem this
+     * package exists to surface.
+     */
     public function scopeProblemsOnly(Builder $query): Builder
     {
         return $query->where(function (Builder $query) {
@@ -52,6 +64,9 @@ class InspectorDelivery extends Model
                 ->orWhere(function (Builder $query) {
                     $query->where('status', EventStatus::Received->value)
                         ->where('received_at', '<', Carbon::now()->subSeconds(self::STUCK_AFTER_SECONDS));
+                })
+                ->orWhereHas('event.diagnostics', function (Builder $query) {
+                    $query->whereIn('severity', [Severity::Warning->value, Severity::Error->value]);
                 });
         });
     }
