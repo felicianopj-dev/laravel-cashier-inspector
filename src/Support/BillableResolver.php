@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector\Support;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Cashier\Cashier;
@@ -22,6 +23,9 @@ class BillableResolver
      * stops being good enough.
      */
     protected const EMAIL_MATCH_LIMIT = 500;
+
+    /** @var array<class-string, bool> */
+    protected static array $hasEmailColumn = [];
 
     /**
      * Never throws: a misconfigured Cashier::$customerModel (or any other
@@ -83,10 +87,13 @@ class BillableResolver
 
             $instance = new $model;
 
-            $hasEmail = Schema::connection($instance->getConnectionName())
-                ->hasColumn($instance->getTable(), 'email');
-
-            if (! $hasEmail) {
+            // The guard can't be dropped in favour of letting the query
+            // fail: on SQLite an unknown double-quoted identifier is read
+            // as a string literal, so "email" like '%term%' matches every
+            // row instead of erroring. It is memoized because a search
+            // runs on every dashboard poll and this is a schema
+            // introspection query.
+            if (! $this->hasEmailColumn($instance)) {
                 return null;
             }
 
@@ -108,5 +115,18 @@ class BillableResolver
 
             return null;
         }
+    }
+
+    /**
+     * ponytail: memoized for the life of the process, so a migration that
+     * adds the column mid-process isn't seen until the next boot. Fine for
+     * a column that only changes with a deploy.
+     */
+    protected function hasEmailColumn(Model $instance): bool
+    {
+        $key = $instance::class;
+
+        return self::$hasEmailColumn[$key] ??= Schema::connection($instance->getConnectionName())
+            ->hasColumn($instance->getTable(), 'email');
     }
 }
