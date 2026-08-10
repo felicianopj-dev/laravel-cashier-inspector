@@ -21,6 +21,9 @@ return new class extends Migration
             $table->string('checkout_session_id')->nullable();
             $table->nullableMorphs('billable');
             $table->timestamps();
+
+            // Pruning selects on this column.
+            $table->index('created_at');
         });
     }
 
