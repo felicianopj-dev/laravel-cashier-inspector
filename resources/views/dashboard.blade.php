@@ -31,7 +31,11 @@
         .filters .actions { display: flex; gap: 0.75rem; align-items: center; }
         .filters button { font: inherit; padding: 0.35rem 0.75rem; background: #2563eb; color: #fff; border: none; border-radius: 0.25rem; cursor: pointer; font-size: 0.8125rem; }
         .filters .clear { color: #666; font-size: 0.8125rem; text-decoration: none; }
-        .pagination { margin-top: 1rem; }
+        .pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; font-size: 0.8125rem; color: #666; }
+        .pagination .pages { display: flex; align-items: center; gap: 0.75rem; }
+        .pagination a { color: #2563eb; text-decoration: none; }
+        .pagination a:hover { text-decoration: underline; }
+        .pagination .disabled { color: #b0b0b0; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -176,9 +180,30 @@
             </tbody>
         </table>
 
-        <div class="pagination">
-            {{ $deliveries->links() }}
-        </div>
+        {{-- Laravel's default paginator view is styled for Tailwind, which
+             this dashboard deliberately doesn't ship, so its arrow icons
+             render at their intrinsic size. Plain links instead. --}}
+        @if ($deliveries->hasPages())
+            <div class="pagination">
+                <span>Showing {{ $deliveries->firstItem() }}-{{ $deliveries->lastItem() }} of {{ $deliveries->total() }}</span>
+
+                <span class="pages">
+                    @if ($deliveries->onFirstPage())
+                        <span class="disabled">Previous</span>
+                    @else
+                        <a href="{{ $deliveries->previousPageUrl() }}" rel="prev">Previous</a>
+                    @endif
+
+                    <span>Page {{ $deliveries->currentPage() }} of {{ $deliveries->lastPage() }}</span>
+
+                    @if ($deliveries->hasMorePages())
+                        <a href="{{ $deliveries->nextPageUrl() }}" rel="next">Next</a>
+                    @else
+                        <span class="disabled">Next</span>
+                    @endif
+                </span>
+            </div>
+        @endif
     @endif
 
     <script>
