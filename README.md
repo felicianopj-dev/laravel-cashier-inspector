@@ -17,11 +17,11 @@ inconsistent billing states, and explains what went wrong.
 * Laravel `^11.0 | ^12.0 | ^13.0`
 * Laravel Cashier Stripe `^15.0`
 
-Laravel 11 and 12 are covered by the test matrix, on PHP 8.2, 8.3, and 8.4,
-against both lowest and stable dependency resolutions. Laravel 13 is
-allowed and Cashier supports it, but it is not tested yet: the Pest Laravel
-plugin only gained Laravel 13 support in a major that requires PHP 8.3,
-which the matrix's PHP 8.2 lanes cannot install.
+Every supported Laravel version is covered by the test matrix, against both
+lowest and stable dependency resolutions: Laravel 11 and 12 on PHP 8.2, 8.3,
+and 8.4, and Laravel 13 on PHP 8.3 and 8.4. Laravel 13 is not tested on PHP
+8.2 because it requires a Pest Laravel plugin major that itself requires PHP
+8.3; the package still supports PHP 8.2 on Laravel 11 and 12.
 
 ## Installation
 

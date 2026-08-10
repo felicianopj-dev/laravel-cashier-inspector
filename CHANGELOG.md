@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the version stays below 1.0.0, breaking changes may land in a minor
 release.
 
+## Unreleased
+
+### Changed
+
+* Laravel 13 is now covered by the test matrix, on PHP 8.3 and 8.4, against
+  both lowest and stable dependency resolutions. This closes the known
+  limitation noted in v0.1.0. The dev requirement on Pest widened to
+  `^3.0|^4.0` so each matrix lane resolves whichever major its PHP version
+  allows; Laravel 13 on PHP 8.2 is excluded, since the Pest Laravel plugin
+  major that supports Laravel 13 requires PHP 8.3. The package's own PHP
+  `^8.2` requirement is unchanged.
+
 ## v0.1.0 - 2026-08-10
 
 First tagged release. Phase 1 MVP.

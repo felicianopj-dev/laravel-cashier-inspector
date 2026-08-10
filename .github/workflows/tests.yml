@@ -14,11 +14,15 @@ jobs:
       fail-fast: false
       matrix:
         php: [8.2, 8.3, 8.4]
-        # Laravel 13.* isn't in this matrix yet: pestphp/pest-plugin-laravel
-        # ^3.0 has no release supporting it. Add it back once that package
-        # catches up (composer.json's own ^13.0 support claim stays as-is).
-        laravel: ['11.*', '12.*']
+        laravel: ['11.*', '12.*', '13.*']
         stability: [prefer-lowest, prefer-stable]
+        exclude:
+          # Laravel 13 needs pestphp/pest-plugin-laravel ^4.0, whose own PHP
+          # requirement is ^8.3. Nothing can satisfy Laravel 13 on PHP 8.2,
+          # so the combination is dropped rather than left to fail. The
+          # package itself still supports PHP 8.2 on Laravel 11 and 12.
+          - php: 8.2
+            laravel: '13.*'
         include:
           # orchestra/testbench-core 9.0-9.9.x has a real bug: the
           # "@testbench" path alias never gets expanded when resolving the
@@ -30,6 +34,8 @@ jobs:
             testbench: '^9.10'
           - laravel: '12.*'
             testbench: '10.*'
+          - laravel: '13.*'
+            testbench: '^11.0'
 
     name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }} - ${{ matrix.stability }}
 
