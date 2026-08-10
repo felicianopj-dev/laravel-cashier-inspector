@@ -59,34 +59,34 @@ class DiagnosticEngine
 
     protected function runRule(DiagnosticRule $rule, InspectorEvent $event): void
     {
+        // Persisting is inside the same try as the rule itself: a failure
+        // writing one diagnostic must not skip the remaining rules.
         try {
             if (! $rule->supports($event)) {
                 return;
             }
 
             $result = $rule->diagnose($event);
+
+            if (! $result->isTriggered()) {
+                return;
+            }
+
+            InspectorDiagnostic::create([
+                'event_id' => $event->id,
+                'rule' => $rule::class,
+                'code' => $result->code,
+                'severity' => Severity::from($result->status->value),
+                'title' => $result->title,
+                'message' => $result->message,
+                'context' => $result->context + ($result->suggestedChecks !== [] ? ['suggested_checks' => $result->suggestedChecks] : []),
+                'created_at' => Carbon::now(),
+            ]);
         } catch (Throwable $e) {
             Log::warning('Cashier Inspector diagnostic rule failed.', [
                 'rule' => $rule::class,
                 'exception' => $e,
             ]);
-
-            return;
         }
-
-        if (! $result->isTriggered()) {
-            return;
-        }
-
-        InspectorDiagnostic::create([
-            'event_id' => $event->id,
-            'rule' => $rule::class,
-            'code' => $result->code,
-            'severity' => Severity::from($result->status->value),
-            'title' => $result->title,
-            'message' => $result->message,
-            'context' => $result->context + ($result->suggestedChecks !== [] ? ['suggested_checks' => $result->suggestedChecks] : []),
-            'created_at' => Carbon::now(),
-        ]);
     }
 }
