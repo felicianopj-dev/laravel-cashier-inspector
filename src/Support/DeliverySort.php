@@ -67,7 +67,14 @@ final class DeliverySort
 
         [$source, $name] = self::COLUMNS[$this->column];
 
-        if ($source === 'delivery') {
+        // The severity column renders the worst of the delivery's own
+        // outcome and its event's findings, so it has to order by that
+        // rather than by the stored column.
+        if ($this->column === 'severity') {
+            [$sql, $bindings] = InspectorDelivery::severityRankSql();
+
+            $query->orderByRaw("{$sql} {$this->direction}", $bindings);
+        } elseif ($source === 'delivery') {
             $query->orderBy($name, $this->direction);
         } else {
             $query->orderBy($this->eventColumn($name), $this->direction);

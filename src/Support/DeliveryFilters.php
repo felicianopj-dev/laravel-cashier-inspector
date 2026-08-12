@@ -2,6 +2,8 @@
 
 namespace FelicianoPJ\CashierInspector\Support;
 
+use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -48,7 +50,17 @@ final class DeliveryFilters
     {
         $query->when($this->problemsOnly, fn (Builder $q) => $q->problemsOnly());
 
-        $query->when($this->severity, fn (Builder $q) => $q->where('severity', $this->severity));
+        // Matches the severity the dashboard renders, not the stored column,
+        // so a row shown as a warning is found by filtering for warnings. An
+        // unknown value ranks -1 and matches nothing, as it did before.
+        $query->when($this->severity, function (Builder $q) {
+            [$sql, $bindings] = InspectorDelivery::severityRankSql();
+
+            $q->whereRaw("{$sql} = ?", [
+                ...$bindings,
+                Severity::tryFrom($this->severity)?->rank() ?? -1,
+            ]);
+        });
         $query->when($this->status, fn (Builder $q) => $q->where('status', $this->status));
 
         $query->when($this->eventType, fn (Builder $q) => $q->whereHas(

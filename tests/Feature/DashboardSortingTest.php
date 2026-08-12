@@ -70,6 +70,33 @@ it('sorts by a column on the delivery itself', function () use ($makeDelivery, $
     ]);
 });
 
+it('sorts severity by what the column shows, findings included', function () use ($makeDelivery, $renderedOrder) {
+    // The flagged row stores the lower severity of the two, so ordering by
+    // the stored column alone would put it second.
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_sort_flagged'],
+        ['status' => EventStatus::Unmatched, 'severity' => Severity::Info]
+    )->event->diagnostics()->create([
+        'rule' => 'Manual',
+        'code' => 'duplicate_delivery',
+        'severity' => Severity::Warning,
+        'title' => 'Duplicate delivery',
+        'message' => 'Stripe delivered this event more than once.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_sort_plain'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    expect($renderedOrder('cashier-inspector?all=1&sort=severity&direction=desc'))->toBe([
+        'evt_sort_flagged',
+        'evt_sort_plain',
+    ]);
+});
+
 it('falls back to newest first for an unknown sort column', function () use ($makeDelivery, $renderedOrder) {
     $makeDelivery(['stripe_event_id' => 'evt_sort_older'], ['received_at' => now()->subHour()]);
     $makeDelivery(['stripe_event_id' => 'evt_sort_newer'], ['received_at' => now()]);

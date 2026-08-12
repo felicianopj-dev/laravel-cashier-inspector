@@ -149,8 +149,8 @@
                         @foreach ($deliveries as $delivery)
                             <tr>
                                 <td>
-                                    @if ($delivery->severity)
-                                        <span class="badge severity-{{ $delivery->severity->value }}">{{ ucfirst($delivery->severity->value) }}</span>
+                                    @if ($severity = $delivery->displaySeverity())
+                                        <span class="badge severity-{{ $severity->value }}">{{ ucfirst($severity->value) }}</span>
                                     @endif
                                 </td>
                                 <td>{{ ucfirst($delivery->status->value) }}</td>

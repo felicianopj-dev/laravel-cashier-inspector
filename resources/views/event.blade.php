@@ -29,8 +29,8 @@
         <div>
             <dt>Severity</dt>
             <dd>
-                @if ($latestDelivery?->severity)
-                    <span class="badge severity-{{ $latestDelivery->severity->value }}">{{ ucfirst($latestDelivery->severity->value) }}</span>
+                @if ($severity = $latestDelivery?->displaySeverity())
+                    <span class="badge severity-{{ $severity->value }}">{{ ucfirst($severity->value) }}</span>
                 @else
                     —
                 @endif

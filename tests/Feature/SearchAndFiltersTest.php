@@ -84,6 +84,33 @@ it('filters by severity', function () use ($makeDelivery) {
         ->assertDontSee('evt_err');
 });
 
+it('filters by severity on what the dashboard shows, findings included', function () use ($makeDelivery) {
+    $flagged = $makeDelivery(
+        ['stripe_event_id' => 'evt_flagged'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $flagged->event->diagnostics()->create([
+        'rule' => 'Manual',
+        'code' => 'duplicate_delivery',
+        'severity' => Severity::Warning,
+        'title' => 'Duplicate delivery',
+        'message' => 'Stripe delivered this event more than once.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $makeDelivery(
+        ['stripe_event_id' => 'evt_healthy'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $this->get('cashier-inspector?all=1&severity=warning')
+        ->assertOk()
+        ->assertSee('evt_flagged')
+        ->assertDontSee('evt_healthy');
+});
+
 it('filters by status', function () use ($makeDelivery) {
     $makeDelivery(['stripe_event_id' => 'evt_unmatched'], ['status' => EventStatus::Unmatched, 'severity' => Severity::Info]);
     $makeDelivery(['stripe_event_id' => 'evt_failed'], ['status' => EventStatus::Failed, 'severity' => Severity::Error]);

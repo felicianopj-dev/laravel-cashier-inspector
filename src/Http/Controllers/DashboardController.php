@@ -22,7 +22,9 @@ class DashboardController extends Controller
         $sort = DeliverySort::fromRequest($request);
 
         $query = $filters->apply(
-            InspectorDelivery::query()->with('event')
+            // The diagnostics come along because the severity column shows
+            // the worst of the delivery and its event's findings.
+            InspectorDelivery::query()->with('event.diagnostics')
         );
 
         $deliveries = $sort->apply(clone $query)

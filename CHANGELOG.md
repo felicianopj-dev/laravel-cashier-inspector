@@ -11,6 +11,17 @@ release.
 
 ### Changed
 
+* The dashboard's severity column now shows the worst of a delivery's own
+  outcome and the findings on its event, instead of the delivery's outcome
+  alone. Cashier handles most problem events without complaint, so the row was
+  recorded as a success or as plain information and the list gave no hint that
+  anything had been diagnosed - an event kept by the problems-only view looked
+  identical to a healthy one. Findings from rules that describe the
+  installation are still excluded, exactly as they are when deciding whether an
+  event is a problem at all. Sorting and filtering by severity follow the same
+  value, so a row shown as a warning is found by filtering for warnings and
+  sorts as one.
+
 * Laravel Cashier Stripe is now a hard requirement, at `^15.0 | ^16.0`, rather
   than a development dependency the package quietly assumed was present. Since
   nothing declared it, installing into an application pulled no Cashier at all

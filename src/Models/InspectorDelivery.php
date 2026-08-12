@@ -46,6 +46,74 @@ class InspectorDelivery extends Model
     }
 
     /**
+     * Severity as the dashboard shows it: the worst of this attempt's own
+     * outcome and the findings on its event.
+     *
+     * The row's own severity is about processing alone - Cashier handling an
+     * event without complaint records a success - so an event whose only
+     * problem is a duplicate delivery or a missing local subscription would
+     * read as healthy in the list even though the default view deliberately
+     * keeps it. Environment findings are excluded for the same reason
+     * scopeProblemsOnly() excludes them: they describe the installation and
+     * are identical on every event.
+     *
+     * Sorting and filtering go through severityRankSql() so the column
+     * orders and filters by the value it renders.
+     */
+    public function displaySeverity(): ?Severity
+    {
+        return $this->event?->diagnostics
+            ->whereNotIn('rule', self::environmentRuleClasses())
+            ->pluck('severity')
+            ->push($this->severity)
+            ->filter()
+            ->sortByDesc(fn (Severity $severity) => $severity->rank())
+            ->first() ?? $this->severity;
+    }
+
+    /**
+     * displaySeverity() expressed in SQL, as a rank rather than a name so it
+     * can be compared and ordered. Returned with its bindings because a
+     * Laravel expression cannot carry any.
+     *
+     * @return array{0: string, 1: array<int, string>}
+     */
+    public static function severityRankSql(): array
+    {
+        $deliveries = (new self)->getTable();
+        $diagnostics = (new InspectorDiagnostic)->getTable();
+        $environment = self::environmentRuleClasses();
+
+        $own = self::severityRankCase($deliveries.'.severity');
+
+        $excluded = $environment === []
+            ? ''
+            : ' and d.rule not in ('.implode(', ', array_fill(0, count($environment), '?')).')';
+
+        $worstFinding = 'coalesce((select max('.self::severityRankCase('d.severity').')'
+            ." from {$diagnostics} as d where d.event_id = {$deliveries}.event_id{$excluded}), 0)";
+
+        return [
+            "case when {$worstFinding} > {$own} then {$worstFinding} else {$own} end",
+            [...$environment, ...$environment],
+        ];
+    }
+
+    /**
+     * Values come from the Severity enum itself, never from a request.
+     */
+    protected static function severityRankCase(string $column): string
+    {
+        $cases = '';
+
+        foreach (Severity::cases() as $severity) {
+            $cases .= " when '{$severity->value}' then {$severity->rank()}";
+        }
+
+        return "case {$column}{$cases} else 0 end";
+    }
+
+    /**
      * A delivery counts as a problem when it failed on its own terms, when
      * Cashier had no handler for it, when it never resolved, or when a
      * diagnostic rule flagged the event it belongs to.

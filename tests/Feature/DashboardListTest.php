@@ -113,6 +113,59 @@ it('does not treat an informational diagnostic as a problem', function () use ($
         ->assertDontSee('evt_info_only');
 });
 
+it('shows the worst finding on the event as the row severity', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    // Cashier handled it without complaint, so the row itself is a success.
+    // The finding is the whole reason the event is in the default view, so
+    // the list has to say so rather than reading as healthy.
+    $delivery = $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_rollup'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $delivery->event->diagnostics()->create([
+        'rule' => 'Manual',
+        'code' => 'duplicate_delivery',
+        'severity' => Severity::Warning,
+        'title' => 'Duplicate delivery',
+        'message' => 'Stripe delivered this event more than once.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $this->get('cashier-inspector')
+        ->assertOk()
+        ->assertSee('badge severity-warning', false)
+        ->assertDontSee('badge severity-success', false);
+});
+
+it('does not raise the row severity for an environment finding', function () use ($makeDashboardDelivery) {
+    config()->set('cashier-inspector.enabled', true);
+    $this->app['env'] = 'local';
+
+    $delivery = $makeDashboardDelivery(
+        ['stripe_event_id' => 'evt_rollup_environment'],
+        ['status' => EventStatus::Handled, 'severity' => Severity::Success]
+    );
+
+    $delivery->event->diagnostics()->create([
+        'rule' => MissingWebhookSecretRule::class,
+        'code' => 'webhook_secret_missing',
+        'severity' => Severity::Warning,
+        'title' => 'Stripe webhook secret is not configured',
+        'message' => 'Nothing verifies that incoming requests came from Stripe.',
+        'context' => [],
+        'created_at' => now(),
+    ]);
+
+    $this->get('cashier-inspector?all=1')
+        ->assertOk()
+        ->assertSee('badge severity-success', false)
+        ->assertDontSee('badge severity-warning', false);
+});
+
 it('does not treat an environment diagnostic as a per-event problem', function () use ($makeDashboardDelivery) {
     config()->set('cashier-inspector.enabled', true);
     $this->app['env'] = 'local';
