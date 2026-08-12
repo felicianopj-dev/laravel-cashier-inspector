@@ -9,6 +9,18 @@ release.
 
 ## Unreleased
 
+### Changed
+
+* Laravel Cashier Stripe is now a hard requirement, at `^15.0 | ^16.0`, rather
+  than a development dependency the package quietly assumed was present. Since
+  nothing declared it, installing into an application pulled no Cashier at all
+  and constrained no version, so a fresh install could sit on a Cashier major
+  the package had never been tested against. Composer now refuses an
+  unsupported combination up front. Cashier 16 support is new here and is
+  covered by the existing test matrix: the lowest dependency resolutions land
+  on Cashier 15 and the stable ones on Cashier 16, so both majors run on every
+  supported Laravel and PHP version.
+
 ### Fixed
 
 * Publishing the config file no longer takes the application down. Two of its

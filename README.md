@@ -15,13 +15,19 @@ inconsistent billing states, and explains what went wrong.
 
 * PHP `^8.2`
 * Laravel `^11.0 | ^12.0 | ^13.0`
-* Laravel Cashier Stripe `^15.0`
+* Laravel Cashier Stripe `^15.0 | ^16.0`
+
+Cashier is a hard requirement rather than something you are expected to have
+already, so Composer will refuse to install this package alongside a Cashier
+version it does not support instead of failing later at runtime.
 
 Every supported Laravel version is covered by the test matrix, against both
 lowest and stable dependency resolutions: Laravel 11 and 12 on PHP 8.2, 8.3,
 and 8.4, and Laravel 13 on PHP 8.3 and 8.4. Laravel 13 is not tested on PHP
 8.2 because it requires a Pest Laravel plugin major that itself requires PHP
-8.3; the package still supports PHP 8.2 on Laravel 11 and 12.
+8.3; the package still supports PHP 8.2 on Laravel 11 and 12. Both Cashier
+majors are covered by the same runs: the lowest resolutions land on Cashier 15
+and the stable ones on Cashier 16.
 
 ## Installation
 
