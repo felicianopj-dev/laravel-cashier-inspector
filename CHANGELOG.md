@@ -41,6 +41,16 @@ release.
 
 ### Changed
 
+* The dashboard and event pages were restyled. Both now extend a single
+  layout view instead of each carrying its own copy of the stylesheet, so the
+  markup and the CSS live in one place. The pages gained a sticky header, a
+  centred content column, and card surfaces, and they follow the operating
+  system's light or dark preference. Layout is responsive without media
+  queries: the filter row and the event summary reflow from several columns
+  down to one as the viewport narrows, and wide tables scroll inside their own
+  card rather than widening the page. The diagnostic context column now wraps
+  its JSON instead of scrolling. No published assets or build step were
+  introduced, and no route, controller or query changed.
 * Laravel 13 is now covered by the test matrix, on PHP 8.3 and 8.4, against
   both lowest and stable dependency resolutions. This closes the known
   limitation noted in v0.1.0. The dev requirement on Pest widened to
