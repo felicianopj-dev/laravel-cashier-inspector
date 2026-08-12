@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the version stays below 1.0.0, breaking changes may land in a minor
 release.
 
+## Unreleased
+
+### Fixed
+
+* Publishing the config file no longer takes the application down. Two of its
+  defaults called `app()->environment('local')`, and a published config file is
+  read during bootstrap, before the container binds `env` - so every artisan
+  command and every request failed with "Target class [env] does not exist"
+  from the moment `cashier-inspector:install` ran. Both defaults now read
+  `APP_ENV` through `env()`, which is what a config file may safely do, and the
+  behaviour is unchanged: the dashboard and payload storage still default to on
+  only in a local environment. This affected v0.1.0 and v0.1.1; upgrade if you
+  installed either. The package's own test suite could not catch it, because
+  the service provider merges the config long after bootstrap, so the file is
+  only loaded that early once published - a regression test now loads it
+  against a container with no `env` binding.
+
 ## v0.1.1 - 2026-08-12
 
 ### Added

@@ -13,6 +13,8 @@ use FelicianoPJ\CashierInspector\Diagnostics\Rules\SubscriptionPriceMismatchRule
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\SubscriptionStatusMismatchRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\TestLiveModeMismatchRule;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\UnhandledWebhookRule;
+use Illuminate\Container\Container;
+use Illuminate\Foundation\Application;
 
 it('merges the package config', function () {
     expect(config('cashier-inspector.path'))->toBe('cashier-inspector')
@@ -44,6 +46,25 @@ it('disables the dashboard and payload storage by default outside the local envi
     expect(app()->environment('local'))->toBeFalse()
         ->and(config('cashier-inspector.enabled'))->toBeFalse()
         ->and(config('cashier-inspector.storage.store_payloads'))->toBeFalse();
+});
+
+it('loads the config file before the container binds the environment', function () {
+    // Once published into an app's config directory, this file is read during
+    // bootstrap, while "env" is still unbound. Anything resolving out of the
+    // container here takes the whole application down on every request.
+    $original = Container::getInstance();
+
+    try {
+        new Application();
+
+        $config = require __DIR__.'/../../config/cashier-inspector.php';
+    } finally {
+        Container::setInstance($original);
+    }
+
+    expect($config)->toBeArray()
+        ->and($config['enabled'])->toBeBool()
+        ->and($config['storage']['store_payloads'])->toBeBool();
 });
 
 it('registers the publishable config file', function () {

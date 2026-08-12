@@ -8,9 +8,11 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    // Read through env() rather than app()->environment(): once published,
+    // this file is loaded during bootstrap, before the container binds "env".
     'enabled' => env(
         'CASHIER_INSPECTOR_ENABLED',
-        app()->environment('local')
+        env('APP_ENV', 'production') === 'local'
     ),
 
     'path' => env('CASHIER_INSPECTOR_PATH', 'cashier-inspector'),
@@ -130,7 +132,7 @@ return [
     'storage' => [
         'store_payloads' => env(
             'CASHIER_INSPECTOR_STORE_PAYLOADS',
-            app()->environment('local')
+            env('APP_ENV', 'production') === 'local'
         ),
 
         'store_exception_traces' => env('CASHIER_INSPECTOR_STORE_EXCEPTION_TRACES', false),
