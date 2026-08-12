@@ -23,6 +23,16 @@ release.
   the service provider merges the config long after bootstrap, so the file is
   only loaded that early once published - a regression test now loads it
   against a container with no `env` binding.
+* Running `cashier-inspector:install` more than once no longer duplicates the
+  migrations. Publishing stamps a fresh timestamp onto each file and does not
+  look for an earlier copy, so a second run left two migrations creating each
+  table and the next `php artisan migrate` failed with "table already exists".
+  Since the command is meant to be re-run after fixing what it reports, it now
+  recognises its own earlier output and skips publishing.
+* The warning about Cashier's missing schema now gives a sequence that works.
+  It suggested `php artisan migrate` alone, but Cashier publishes its
+  migrations rather than loading them, so the tables it names are never created
+  that way. It now names the publish step first.
 
 ## v0.1.1 - 2026-08-12
 

@@ -22,6 +22,17 @@ it('publishes the config and migrations', function () {
     expect(glob(database_path('migrations/*_create_cashier_inspector_events_table.php')))->not->toBeEmpty();
 });
 
+it('does not publish the migrations a second time', function () {
+    $this->artisan('cashier-inspector:install')->assertSuccessful();
+
+    $this->artisan('cashier-inspector:install')
+        ->expectsOutputToContain('Migrations are already published.')
+        ->assertSuccessful();
+
+    expect(glob(database_path('migrations/*_create_cashier_inspector_events_table.php')))
+        ->toHaveCount(1);
+});
+
 it('confirms the webhook secret is configured', function () {
     config()->set('cashier.webhook.secret', 'whsec_test');
 

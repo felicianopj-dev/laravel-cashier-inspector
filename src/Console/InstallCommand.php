@@ -5,6 +5,7 @@ namespace FelicianoPJ\CashierInspector\Console;
 use FelicianoPJ\CashierInspector\CashierInspectorServiceProvider;
 use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 
 class InstallCommand extends Command
 {
@@ -19,10 +20,7 @@ class InstallCommand extends Command
             '--tag' => 'cashier-inspector-config',
         ]);
 
-        $this->call('vendor:publish', [
-            '--provider' => CashierInspectorServiceProvider::class,
-            '--tag' => 'cashier-inspector-migrations',
-        ]);
+        $this->publishMigrations();
 
         $this->newLine();
         $this->checkCashierIsInstalled();
@@ -31,6 +29,44 @@ class InstallCommand extends Command
         $this->explainDashboardAuthorization();
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Publish the migrations, unless a previous run already did.
+     *
+     * vendor:publish stamps a fresh timestamp onto every migration it copies
+     * and does not look for an earlier copy, so publishing twice leaves two
+     * migrations creating the same table and the next migrate run fails. This
+     * command is meant to be re-run after fixing what it reports, so it has to
+     * recognise its own earlier output. Names are compared without the leading
+     * timestamp, which is the only part publishing changes.
+     */
+    protected function publishMigrations(): void
+    {
+        $published = $this->migrationNames($this->laravel->databasePath('migrations'))
+            ->intersect($this->migrationNames(__DIR__.'/../../database/migrations'));
+
+        if ($published->isNotEmpty()) {
+            $this->components->info('Migrations are already published.');
+
+            return;
+        }
+
+        $this->call('vendor:publish', [
+            '--provider' => CashierInspectorServiceProvider::class,
+            '--tag' => 'cashier-inspector-migrations',
+        ]);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    protected function migrationNames(string $directory): Collection
+    {
+        return collect(glob($directory.'/*.php') ?: [])
+            ->map(fn (string $path) => preg_replace(
+                '/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php')
+            ));
     }
 
     protected function checkCashierIsInstalled(): void
@@ -54,7 +90,12 @@ class InstallCommand extends Command
             return;
         }
 
-        $this->components->warn("Cashier's database schema is missing: {$missing->implode(', ')}. Run `php artisan migrate`.");
+        // Cashier only publishes its migrations, it does not load them, so
+        // migrate alone never creates these tables.
+        $this->components->warn(
+            "Cashier's database schema is missing: {$missing->implode(', ')}. "
+            .'Run `php artisan vendor:publish --tag=cashier-migrations`, then `php artisan migrate`.'
+        );
     }
 
     protected function checkWebhookSecret(): void
