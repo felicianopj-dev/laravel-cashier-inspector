@@ -2,10 +2,10 @@
 
 > The diagnostic toolkit for Laravel Cashier.
 
-**Early release.** `v0.1.0` is the first tagged version. It is feature
-complete for what it sets out to do, but it has not yet been used widely
-against real Stripe traffic, so the API may still change in a minor
-release while the version stays below `1.0.0`.
+**Early release.** The package is feature complete for what it sets out to
+do, but it has not yet been used widely against real Stripe traffic, so the
+API may still change in a minor release while the version stays below
+`1.0.0`. See the [changelog](CHANGELOG.md) for what each version contains.
 
 Laravel Cashier Inspector is a local debugging and diagnostic dashboard for
 Laravel Cashier. It captures Stripe webhook processing, detects
