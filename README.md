@@ -137,6 +137,136 @@ enabling it makes a live Stripe API call — synchronously, during webhook
 processing — using your configured Stripe credentials, which introduces a
 network dependency and consumes API quota.
 
+## Diagnostic rules
+
+Every captured event is run through a set of rules. A rule that triggers
+records a finding against the event, which then shows on the event page, in
+the copied diagnostic report, and in `cashier-inspector:check`. Warning and
+error findings also make the event count as a problem, so it stays in the
+dashboard's default view.
+
+These rules ship with the package:
+
+| Rule | Code | Severity | Triggers when |
+| --- | --- | --- | --- |
+| `ProcessingExceptionRule` | `processing_exception` | error | Cashier threw while handling the webhook |
+| `IncompatibleCashierSchemaRule` | `cashier_schema_incompatible` | error | Cashier's own tables or columns are missing |
+| `MissingWebhookSecretRule` | `webhook_secret_missing` | warning | `STRIPE_WEBHOOK_SECRET` is not configured |
+| `DuplicateDeliveryRule` | `duplicate_delivery` | warning | The same Stripe event was delivered more than once |
+| `TestLiveModeMismatchRule` | `mode_mismatch` | warning | The event's mode does not match the configured Stripe key |
+| `MissingLocalSubscriptionRule` | `missing_local_subscription` | warning | The event names a subscription Cashier has no row for |
+| `MissingBillableModelRule` | `missing_billable_model` | warning | The event's customer resolves to no local billable model |
+| `DuplicateSubscriptionTypeRule` | `duplicate_subscription_type` | warning | One billable model has two valid subscriptions of the same type |
+| `SlowProcessingRule` | `slow_processing` | warning | Processing took longer than the configured threshold |
+| `SubscriptionStatusMismatchRule` | `subscription_status_mismatch` | warning | The local subscription status differs from Stripe's |
+| `SubscriptionPriceMismatchRule` | `subscription_price_mismatch` | warning | The local subscription prices differ from Stripe's |
+| `UnhandledWebhookRule` | `webhook_unmatched` | info | Cashier has no handler for this event type |
+
+The last two make a live Stripe API call and are off by default. See Security
+and privacy below.
+
+### Writing your own rule
+
+A rule implements `Contracts\DiagnosticRule`, which has two methods:
+`supports()` decides whether the rule applies to an event at all, and
+`diagnose()` returns a `DiagnosticResult`.
+
+```php
+namespace App\CashierInspector;
+
+use FelicianoPJ\CashierInspector\Contracts\DiagnosticRule;
+use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticResult;
+use FelicianoPJ\CashierInspector\Models\InspectorEvent;
+
+class RefundOnNewSubscriptionRule implements DiagnosticRule
+{
+    public function supports(InspectorEvent $event): bool
+    {
+        return $event->stripe_event_type === 'charge.refunded'
+            && $event->billable_id !== null;
+    }
+
+    public function diagnose(InspectorEvent $event): DiagnosticResult
+    {
+        // The local model the event's Stripe customer resolved to. It is
+        // stored as a type and an id rather than exposed as a relation.
+        $billable = $event->billable_type::find($event->billable_id);
+
+        $subscription = $billable?->subscriptions()
+            ->where('created_at', '>', now()->subDays(7))
+            ->first();
+
+        if (! $subscription) {
+            return DiagnosticResult::passed();
+        }
+
+        return DiagnosticResult::warning(
+            code: 'refund_on_new_subscription',
+            title: 'Refund on a week-old subscription',
+            message: 'This customer was refunded within a week of subscribing.',
+            suggestedChecks: [
+                'Confirm the subscription was cancelled as well as refunded.',
+            ],
+            context: [
+                'subscription_id' => $subscription->stripe_id,
+            ],
+        );
+    }
+}
+```
+
+Register it in the published config. Rules are resolved through the
+container, so a rule may type-hint its dependencies in a constructor:
+
+```php
+'diagnostics' => [
+    'rules' => [
+        // ... the built-in rules you want to keep
+        \App\CashierInspector\RefundOnNewSubscriptionRule::class,
+    ],
+],
+```
+
+The list is the whole story: remove a built-in rule from it and that rule
+stops running. Order does not matter, since every rule is run against every
+event it supports.
+
+`DiagnosticResult` has five constructors. `passed()` and `skipped()` record
+nothing. `info()`, `warning()` and `error()` each take a `code` (a short
+stable identifier, unique to your rule), a `title`, a `message`, and
+optionally `suggestedChecks` and a `context` array, both of which are shown
+on the event page and included in the copied report.
+
+Four things worth knowing before you write one:
+
+* **Rules run synchronously, inside the request that handles the webhook.**
+  Slow work here delays the response Cashier returns to Stripe. Anything that
+  makes a network call should be behind a config flag that defaults to off,
+  the way the two Stripe comparison rules are.
+* **`$event->payload` is null unless payload storage is enabled**, which it
+  is not outside local environments by default. A rule that reads the payload
+  must handle its absence. Stored payloads are also redacted, so sensitive
+  values read back as `[redacted]` rather than their originals. The extracted
+  columns (`customer_id`, `subscription_id`, `invoice_id`,
+  `checkout_session_id`, `livemode`, `billable_type`, `billable_id`) are
+  always populated and are the safer thing to read.
+* **A rule that throws is logged and skipped**, and the remaining rules still
+  run. Nothing a rule does can break Cashier's webhook handling, so a failure
+  is silent apart from the log entry.
+* **Diagnostics are recomputed, not accumulated.** Every run replaces an
+  event's findings, so a rule should reach the same conclusion given the same
+  event rather than counting how often it has run.
+
+If your rule reports on the application's configuration rather than on the
+event itself, implement the `Contracts\EnvironmentDiagnostic` marker
+interface as well. Findings from those rules still show in full on the event
+page, but they do not make every event count as a problem in the dashboard's
+default view:
+
+```php
+class MyEnvironmentRule implements DiagnosticRule, EnvironmentDiagnostic
+```
+
 ## Health check
 
 ```bash

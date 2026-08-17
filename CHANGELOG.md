@@ -11,6 +11,15 @@ release.
 
 ### Added
 
+* Documentation for the diagnostic rules: what each of the twelve built-in
+  rules detects and the code it records, and how to write and register a rule
+  of your own. The extension point itself already worked - a rule is a class
+  implementing a two-method interface, added to the `diagnostics.rules` config
+  array and resolved through the container - but nothing described it, so it
+  was effectively private. A test now exercises the documented example
+  verbatim, so the contract cannot change without the documentation changing
+  with it.
+
 * A health check command, `php artisan cashier-inspector:check`. It reports
   Cashier and its schema, this package's own tables, the Stripe secret and
   webhook secret, Cashier's billable customer model, whether any webhook
