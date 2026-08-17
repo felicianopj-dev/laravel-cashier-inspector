@@ -288,6 +288,22 @@ The recent-events window defaults to 24 hours and is configurable with
 `CASHIER_INSPECTOR_RECENT_EVENTS_WINDOW_HOURS`, for applications that only
 see Stripe traffic occasionally.
 
+## Inspecting one event
+
+```bash
+php artisan cashier-inspector:event evt_123
+```
+
+Prints what was captured and diagnosed for a single Stripe event, followed
+by every delivery attempt with its status, severity, and duration. The
+summary is the same text the dashboard's "Copy diagnostic report" button
+produces, so an event described from a terminal and one pasted from a
+browser read identically, and neither includes the raw payload.
+
+Useful where the dashboard is not reachable — an SSH session on a
+production box, or a CI job. Exits non-zero when no event was captured for
+that id.
+
 ## Retention
 
 Old events, deliveries, and diagnostics can be pruned:

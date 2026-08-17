@@ -11,6 +11,13 @@ release.
 
 ### Added
 
+* A command to inspect one event, `php artisan cashier-inspector:event evt_123`.
+  It prints the same report the dashboard's copy button produces, followed by
+  every delivery attempt with its status, severity, and duration, and exits
+  non-zero when no event was captured for that id. The dashboard was the only
+  way to read a captured event, which is no help over SSH on a machine whose
+  dashboard is not reachable.
+
 * Documentation for the diagnostic rules: what each of the twelve built-in
   rules detects and the code it records, and how to write and register a rule
   of your own. The extension point itself already worked - a rule is a class
