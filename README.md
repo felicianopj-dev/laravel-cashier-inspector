@@ -31,19 +31,6 @@ and the stable ones on Cashier 16.
 
 ## Installation
 
-Not on Packagist yet. Add the repository to your `composer.json` first:
-
-```json
-"repositories": [
-    {
-        "type": "vcs",
-        "url": "https://github.com/felicianopj-dev/laravel-cashier-inspector"
-    }
-]
-```
-
-Then:
-
 ```bash
 composer require felicianopj/laravel-cashier-inspector:^0.1 --dev
 php artisan cashier-inspector:install

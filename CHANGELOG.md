@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the version stays below 1.0.0, breaking changes may land in a minor
 release.
 
+## Unreleased
+
+### Changed
+
+* The package is published on Packagist, so installing it is a plain
+  `composer require`. Until now every application had to add a version control
+  repository entry to its own `composer.json` before Composer could find the
+  package at all; that entry is no longer needed and can be removed.
+
 ## v0.1.2 - 2026-08-12
 
 ### Changed
