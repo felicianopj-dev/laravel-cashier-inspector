@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector;
 
+use FelicianoPJ\CashierInspector\Console\CheckCommand;
 use FelicianoPJ\CashierInspector\Console\InstallCommand;
 use FelicianoPJ\CashierInspector\Console\PruneCommand;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
@@ -60,6 +61,7 @@ class CashierInspectorServiceProvider extends ServiceProvider
             ], 'cashier-inspector-migrations');
 
             $this->commands([
+                CheckCommand::class,
                 InstallCommand::class,
                 PruneCommand::class,
             ]);

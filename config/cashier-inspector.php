@@ -140,4 +140,20 @@ return [
         'retention_days' => env('CASHIER_INSPECTOR_RETENTION_DAYS', 7),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Health check
+    |--------------------------------------------------------------------------
+    |
+    | How far back `cashier-inspector:check` looks for received webhook events
+    | before reporting that none have arrived. An application that only sees
+    | Stripe traffic now and then can widen the window so a quiet day is not
+    | reported as a problem.
+    |
+    */
+
+    'health' => [
+        'recent_events_window_hours' => env('CASHIER_INSPECTOR_RECENT_EVENTS_WINDOW_HOURS', 24),
+    ],
+
 ];

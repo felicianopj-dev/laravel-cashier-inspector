@@ -3,7 +3,9 @@
 namespace FelicianoPJ\CashierInspector\Console;
 
 use FelicianoPJ\CashierInspector\CashierInspectorServiceProvider;
-use FelicianoPJ\CashierInspector\Diagnostics\Rules\IncompatibleCashierSchemaRule;
+use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Health\HealthCheck;
+use FelicianoPJ\CashierInspector\Health\HealthReport;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
@@ -13,7 +15,12 @@ class InstallCommand extends Command
 
     protected $description = 'Publish Cashier Inspector\'s config and migrations, and check the install is ready to use';
 
-    public function handle(): int
+    /**
+     * The checks reported here are the health report's, so the two commands
+     * cannot describe the same condition differently. Install stays advisory
+     * and always succeeds - cashier-inspector:check is the one that fails.
+     */
+    public function handle(HealthReport $report): int
     {
         $this->call('vendor:publish', [
             '--provider' => CashierInspectorServiceProvider::class,
@@ -23,12 +30,21 @@ class InstallCommand extends Command
         $this->publishMigrations();
 
         $this->newLine();
-        $this->checkCashierIsInstalled();
-        $this->checkCashierSchema();
-        $this->checkWebhookSecret();
+
+        foreach ([$report->cashierInstalled(), $report->cashierSchema(), $report->webhookSecret()] as $check) {
+            $this->report($check);
+        }
+
         $this->explainDashboardAuthorization();
 
         return self::SUCCESS;
+    }
+
+    protected function report(HealthCheck $check): void
+    {
+        $check->severity === Severity::Success
+            ? $this->components->info($check->message)
+            : $this->components->warn($check->message);
     }
 
     /**
@@ -67,46 +83,6 @@ class InstallCommand extends Command
             ->map(fn (string $path) => preg_replace(
                 '/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php')
             ));
-    }
-
-    protected function checkCashierIsInstalled(): void
-    {
-        if (class_exists(\Laravel\Cashier\Cashier::class)) {
-            $this->components->info('Laravel Cashier Stripe is installed.');
-
-            return;
-        }
-
-        $this->components->warn('Laravel Cashier Stripe was not found. Install it with `composer require laravel/cashier`.');
-    }
-
-    protected function checkCashierSchema(): void
-    {
-        $missing = (new IncompatibleCashierSchemaRule)->missingPieces();
-
-        if ($missing->isEmpty()) {
-            $this->components->info('Cashier\'s database schema looks complete.');
-
-            return;
-        }
-
-        // Cashier only publishes its migrations, it does not load them, so
-        // migrate alone never creates these tables.
-        $this->components->warn(
-            "Cashier's database schema is missing: {$missing->implode(', ')}. "
-            .'Run `php artisan vendor:publish --tag=cashier-migrations`, then `php artisan migrate`.'
-        );
-    }
-
-    protected function checkWebhookSecret(): void
-    {
-        if (filled(config('cashier.webhook.secret'))) {
-            $this->components->info('STRIPE_WEBHOOK_SECRET is configured.');
-
-            return;
-        }
-
-        $this->components->warn('STRIPE_WEBHOOK_SECRET is not set. Without it, Cashier cannot verify incoming webhook requests came from Stripe.');
     }
 
     protected function explainDashboardAuthorization(): void

@@ -9,6 +9,18 @@ release.
 
 ## Unreleased
 
+### Added
+
+* A health check command, `php artisan cashier-inspector:check`. It reports
+  Cashier and its schema, this package's own tables, the Stripe secret and
+  webhook secret, Cashier's billable customer model, whether any webhook
+  events arrived recently, and what the diagnostic rules already found on the
+  events still stored. It exits non-zero only on conditions that actually
+  break the package, so warnings such as a missing webhook secret in local
+  development do not fail a deployment. The recent-events window defaults to
+  24 hours and is configurable with
+  `CASHIER_INSPECTOR_RECENT_EVENTS_WINDOW_HOURS`.
+
 ### Changed
 
 * The package is published on Packagist, so installing it is a plain

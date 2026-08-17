@@ -137,6 +137,27 @@ enabling it makes a live Stripe API call — synchronously, during webhook
 processing — using your configured Stripe credentials, which introduces a
 network dependency and consumes API quota.
 
+## Health check
+
+```bash
+php artisan cashier-inspector:check
+```
+
+Reports whether the pieces this package depends on are in place: Cashier and
+its schema, Cashier Inspector's own tables, the Stripe secret and webhook
+secret, Cashier's billable customer model, whether any webhook events have
+arrived recently, and what the diagnostic rules have already found on the
+events still stored.
+
+The command exits non-zero only when something is genuinely broken, so it
+can gate a deploy. A missing webhook secret is reported as a warning and
+still exits zero — that is a normal state in local development, and a check
+that failed on it would just get switched off.
+
+The recent-events window defaults to 24 hours and is configurable with
+`CASHIER_INSPECTOR_RECENT_EVENTS_WINDOW_HOURS`, for applications that only
+see Stripe traffic occasionally.
+
 ## Retention
 
 Old events, deliveries, and diagnostics can be pruned:

@@ -151,9 +151,12 @@ class InspectorDelivery extends Model
      * an event a problem on their own. Read from config rather than
      * hardcoded, so a custom rule can opt in the same way.
      *
+     * Public because the health check reports these conditions directly and
+     * has to leave their findings out for the same reason this scope does.
+     *
      * @return array<int, class-string>
      */
-    protected static function environmentRuleClasses(): array
+    public static function environmentRuleClasses(): array
     {
         return array_values(array_filter(
             (array) config('cashier-inspector.diagnostics.rules', []),
