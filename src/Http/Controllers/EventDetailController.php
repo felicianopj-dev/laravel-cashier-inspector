@@ -4,6 +4,7 @@ namespace FelicianoPJ\CashierInspector\Http\Controllers;
 
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use FelicianoPJ\CashierInspector\Support\DiagnosticReport;
+use FelicianoPJ\CashierInspector\Support\TelescopeIntegration;
 use Illuminate\Routing\Controller;
 
 class EventDetailController extends Controller
@@ -20,6 +21,7 @@ class EventDetailController extends Controller
             'latestDelivery' => $latestDelivery,
             'diagnostics' => $diagnostics,
             'report' => DiagnosticReport::generate($event, $latestDelivery, $diagnostics),
+            'telescopeUrl' => TelescopeIntegration::urlFor($event),
         ]);
     }
 }

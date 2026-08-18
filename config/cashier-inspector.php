@@ -142,6 +142,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Integrations
+    |--------------------------------------------------------------------------
+    |
+    | When Laravel Telescope is installed, the entries it records while a
+    | Stripe webhook is being processed are tagged with that event's id, and
+    | each event page links to them. Telescope is never required, and nothing
+    | here runs without it.
+    |
+    */
+
+    'integrations' => [
+        'telescope' => env('CASHIER_INSPECTOR_TELESCOPE_LINKS', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Processing timeline
     |--------------------------------------------------------------------------
     |

@@ -11,6 +11,18 @@ release.
 
 ### Added
 
+* A Telescope link on every event page. When Laravel Telescope is installed,
+  everything it records while a Stripe webhook is being processed is tagged
+  with that event's id, and the page links to those entries - so a finding
+  here leads to the queries, events and exceptions that ran while it
+  happened. Telescope is not a dependency: the link is hidden when it is
+  absent or disabled, and `CASHIER_INSPECTOR_TELESCOPE_LINKS=false`
+  suppresses it.
+
+  Nightwatch was investigated and is deliberately not integrated. It exposes
+  no supported way to attach an identifier to the current request and no
+  per-request URL to link to.
+
 * A processing timeline on every event page. Each delivery now records the
   phases of the request that carried it - when it arrived, what this package
   captured and which billable model it resolved, how long Cashier's own

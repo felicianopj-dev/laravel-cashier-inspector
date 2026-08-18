@@ -13,6 +13,7 @@ use FelicianoPJ\CashierInspector\Listeners\RecordWebhookReceived;
 use FelicianoPJ\CashierInspector\Listeners\ReportPreHandledFailure;
 use FelicianoPJ\CashierInspector\Redaction\PayloadRedactor;
 use FelicianoPJ\CashierInspector\Support\StepRecorder;
+use FelicianoPJ\CashierInspector\Support\TelescopeIntegration;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
@@ -73,6 +74,8 @@ class CashierInspectorServiceProvider extends ServiceProvider
         }
 
         $this->loadRoutesFrom($this->routesPath);
+
+        $this->app->make(TelescopeIntegration::class)->register();
         $this->loadViewsFrom($this->viewsPath, 'cashier-inspector');
 
         Event::listen(WebhookReceived::class, RecordWebhookReceived::class);

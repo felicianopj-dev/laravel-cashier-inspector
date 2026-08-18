@@ -99,6 +99,25 @@ Every event page includes a "Copy diagnostic report" button that generates
 a sanitized, plain-text summary suitable for pasting into a GitHub issue,
 Discord, support, or an LLM.
 
+## Telescope
+
+When [Laravel Telescope](https://laravel.com/docs/telescope) is installed,
+every entry it records while a Stripe webhook is being processed - the
+request, the queries, the events, the exceptions - is tagged with that
+event's id, and each event page carries a "View in Telescope" link filtered
+to those entries. So a diagnosis here leads straight to the queries that ran
+while it happened.
+
+Telescope is not a dependency and nothing here runs without it. The link is
+hidden when Telescope is absent or disabled, and
+`CASHIER_INSPECTOR_TELESCOPE_LINKS=false` suppresses it while leaving
+Telescope alone.
+
+Nightwatch is not integrated. It exposes no supported way to attach an
+identifier to the current request, and no per-request URL that could be
+linked to, so anything built for it would depend on internals that are free
+to change. If that changes, this is the place it would go.
+
 ## Security and privacy
 
 The dashboard is never public by default. In production, it stays disabled

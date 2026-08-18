@@ -22,6 +22,9 @@
                 <span x-show="copied" x-cloak>Copied!</span>
             </button>
         </span>
+        @if ($telescopeUrl)
+            <a href="{{ $telescopeUrl }}">View in Telescope</a>
+        @endif
     </p>
 
     <h2>Summary</h2>

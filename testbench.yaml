@@ -1,5 +1,12 @@
 laravel: '@testbench'
 
+# Telescope is a dev dependency, purely so the tests exercise its real API.
+# Package discovery registers it in the workbench app too, where it has no
+# tables and logs a failed insert on every request, so it stays switched off
+# here. Nothing about this package's Telescope integration needs it running.
+env:
+  - TELESCOPE_ENABLED=false
+
 providers:
   - Workbench\App\Providers\WorkbenchServiceProvider
 
