@@ -99,6 +99,40 @@ Every event page includes a "Copy diagnostic report" button that generates
 a sanitized, plain-text summary suitable for pasting into a GitHub issue,
 Discord, support, or an LLM.
 
+## Instrumenting Cashier's route (optional)
+
+Failures are captured without any of this: an exception reporting hook
+records the class, message and trace, and a terminating middleware records
+that the request ended abnormally even when the hook never runs.
+
+That pair has one gap. An exception your application chooses not to report -
+anything in `dontReport`, or a handler that reports selectively - leaves only
+the fallback, so the event page says the request ended with a 500 and cannot
+say what threw. Turn on:
+
+```dotenv
+CASHIER_INSPECTOR_ROUTE_MIDDLEWARE=true
+```
+
+and this package attaches middleware to Cashier's own webhook route, wrapping
+the controller. Every `Throwable` it lets escape is recorded with its class,
+message and trace, and then rethrown unchanged, so Cashier and your error
+handling behave exactly as before.
+
+The route is found by the controller it resolves to, so moving Cashier with
+`CASHIER_PATH` needs no configuration here. Nothing is attached while the
+setting is off.
+
+Two things it does not do, both worth knowing before you turn it on.
+Signature verification is still not separately measurable: Cashier applies
+`VerifyWebhookSignature` from its controller's constructor, so it runs
+*inside* the route dispatch, after this middleware - and a request with a bad
+signature is rejected before Cashier dispatches any event, so this package
+never sees it at all. And it does not report which local subscription Cashier
+resolved: the handlers do that inline, with no seam to observe, and reading
+it would mean overriding each handler and tracking their bodies across
+Cashier releases.
+
 ## Telescope
 
 When [Laravel Telescope](https://laravel.com/docs/telescope) is installed,

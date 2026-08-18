@@ -7,6 +7,7 @@ use FelicianoPJ\CashierInspector\Console\EventCommand;
 use FelicianoPJ\CashierInspector\Console\InstallCommand;
 use FelicianoPJ\CashierInspector\Console\PruneCommand;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
+use FelicianoPJ\CashierInspector\Http\Middleware\InstrumentCashierWebhook;
 use FelicianoPJ\CashierInspector\Http\Middleware\RecordWebhookOutcome;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookHandled;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookReceived;
@@ -18,9 +19,11 @@ use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Events\WebhookHandled;
 use Laravel\Cashier\Events\WebhookReceived;
+use Laravel\Cashier\Http\Controllers\WebhookController;
 use Throwable;
 
 class CashierInspectorServiceProvider extends ServiceProvider
@@ -82,6 +85,42 @@ class CashierInspectorServiceProvider extends ServiceProvider
         Event::listen(WebhookHandled::class, RecordWebhookHandled::class);
 
         $this->registerPreHandledFailureCapture();
+        $this->registerRouteInstrumentation();
+    }
+
+    /**
+     * Attach the opt-in middleware to Cashier's own webhook route.
+     *
+     * Off by default: the exception reporting hook and the terminating
+     * middleware capture failures without touching anyone's routes. This is
+     * for installations that want every Throwable recorded, reportable or
+     * not, and signature verification measured rather than inferred.
+     *
+     * Routes are matched by the controller they resolve to, not by URI or
+     * name, so relocating Cashier with CASHIER_PATH changes nothing here.
+     * Deferred until the application has booted, since Cashier registers its
+     * route from its own provider and the order between providers is not
+     * ours to assume.
+     */
+    protected function registerRouteInstrumentation(): void
+    {
+        if (! config('cashier-inspector.integrations.route_middleware', false)) {
+            return;
+        }
+
+        $this->app->booted(function () {
+            foreach (Route::getRoutes() as $route) {
+                try {
+                    $controller = $route->getController();
+                } catch (Throwable) {
+                    continue;
+                }
+
+                if ($controller instanceof WebhookController) {
+                    $route->middleware(InstrumentCashierWebhook::class);
+                }
+            }
+        });
     }
 
     protected function registerPreHandledFailureCapture(): void

@@ -11,6 +11,15 @@ release.
 
 ### Added
 
+* An optional route instrumentation, off by default, behind
+  `CASHIER_INSPECTOR_ROUTE_MIDDLEWARE=true`. It attaches middleware to
+  Cashier's own webhook route so that every exception the controller lets
+  escape is recorded with its class, message and trace - including ones your
+  application never reports, which until now produced only a bare "ended with
+  HTTP 500" record. The exception is rethrown unchanged, so Cashier and your
+  error handling are unaffected, and the route is located by the controller
+  it resolves to rather than by its path.
+
 * A Telescope link on every event page. When Laravel Telescope is installed,
   everything it records while a Stripe webhook is being processed is tagged
   with that event's id, and the page links to those entries - so a finding

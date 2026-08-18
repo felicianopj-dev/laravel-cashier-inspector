@@ -154,6 +154,15 @@ return [
 
     'integrations' => [
         'telescope' => env('CASHIER_INSPECTOR_TELESCOPE_LINKS', true),
+
+        /*
+         * Attaches middleware to Cashier's own webhook route. Off by
+         * default - failures are already captured without touching your
+         * routes. Turn it on to record exceptions your application does not
+         * report, and to measure signature verification instead of assuming
+         * it.
+         */
+        'route_middleware' => env('CASHIER_INSPECTOR_ROUTE_MIDDLEWARE', false),
     ],
 
     /*
