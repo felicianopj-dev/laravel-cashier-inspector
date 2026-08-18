@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the version stays below 1.0.0, breaking changes may land in a minor
 release.
 
+## Unreleased
+
+### Fixed
+
+* `php artisan cashier-inspector:install` now publishes each migration the
+  application is missing, instead of skipping the whole step as soon as any
+  of them is already there. The old behaviour was correct while the package
+  never added a table after a release, but it meant a release that did add
+  one could never reach an application installed from an earlier version:
+  the command would report the migrations as already published and the new
+  table would simply never be created.
+
 ## v0.1.3 - 2026-08-18
 
 ### Added

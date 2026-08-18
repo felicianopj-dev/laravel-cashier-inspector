@@ -7,6 +7,7 @@ use FelicianoPJ\CashierInspector\Enums\Severity;
 use FelicianoPJ\CashierInspector\Health\HealthCheck;
 use FelicianoPJ\CashierInspector\Health\HealthReport;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class InstallCommand extends Command
@@ -48,30 +49,45 @@ class InstallCommand extends Command
     }
 
     /**
-     * Publish the migrations, unless a previous run already did.
+     * Publish whichever migrations the application doesn't have yet.
      *
      * vendor:publish stamps a fresh timestamp onto every migration it copies
-     * and does not look for an earlier copy, so publishing twice leaves two
-     * migrations creating the same table and the next migrate run fails. This
-     * command is meant to be re-run after fixing what it reports, so it has to
-     * recognise its own earlier output. Names are compared without the leading
-     * timestamp, which is the only part publishing changes.
+     * and does not look for an earlier copy, so letting it publish twice
+     * leaves two migrations creating the same table and the next migrate run
+     * fails. This command is meant to be re-run after fixing what it reports,
+     * so it has to recognise its own earlier output - and a release that adds
+     * a table has to reach an application that published the earlier ones,
+     * which is why this compares file by file rather than skipping wholesale.
+     * Names are compared without the leading timestamp, the only part
+     * publishing changes.
      */
     protected function publishMigrations(): void
     {
-        $published = $this->migrationNames($this->laravel->databasePath('migrations'))
-            ->intersect($this->migrationNames(__DIR__.'/../../database/migrations'));
+        $target = $this->laravel->databasePath('migrations');
+        $existing = $this->migrationNames($target);
 
-        if ($published->isNotEmpty()) {
+        $missing = collect(glob(__DIR__.'/../../database/migrations/*.php') ?: [])
+            ->reject(fn (string $path) => $existing->contains($this->migrationName($path)));
+
+        if ($missing->isEmpty()) {
             $this->components->info('Migrations are already published.');
 
             return;
         }
 
-        $this->call('vendor:publish', [
-            '--provider' => CashierInspectorServiceProvider::class,
-            '--tag' => 'cashier-inspector-migrations',
-        ]);
+        if (! is_dir($target)) {
+            mkdir($target, 0755, true);
+        }
+
+        // Ordered so migrations that were written to run in sequence keep
+        // that order under their new timestamps.
+        foreach ($missing->sort()->values() as $index => $path) {
+            $name = Carbon::now()->addSeconds($index)->format('Y_m_d_His').'_'.$this->migrationName($path).'.php';
+
+            copy($path, $target.'/'.$name);
+
+            $this->components->info("Published migration [{$name}].");
+        }
     }
 
     /**
@@ -80,9 +96,12 @@ class InstallCommand extends Command
     protected function migrationNames(string $directory): Collection
     {
         return collect(glob($directory.'/*.php') ?: [])
-            ->map(fn (string $path) => preg_replace(
-                '/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php')
-            ));
+            ->map(fn (string $path) => $this->migrationName($path));
+    }
+
+    protected function migrationName(string $path): string
+    {
+        return preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path, '.php'));
     }
 
     protected function explainDashboardAuthorization(): void

@@ -33,6 +33,40 @@ it('does not publish the migrations a second time', function () {
         ->toHaveCount(1);
 });
 
+it('publishes a migration an earlier version did not have', function () {
+    $this->artisan('cashier-inspector:install')->assertSuccessful();
+
+    // Stand in for an application installed from a release that predates one
+    // of the tables: delete a single published migration and re-run.
+    $published = glob(database_path('migrations/*_create_cashier_inspector_*'));
+    sort($published);
+    $dropped = end($published);
+    unlink($dropped);
+
+    $this->artisan('cashier-inspector:install')->assertSuccessful();
+
+    $republished = glob(database_path('migrations/*_'.preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($dropped))));
+
+    expect($republished)->toHaveCount(1)
+        ->and(glob(database_path('migrations/*_create_cashier_inspector_*')))->toHaveCount(count($published));
+});
+
+it('keeps published migrations in the order they are meant to run', function () {
+    $this->artisan('cashier-inspector:install')->assertSuccessful();
+
+    $strip = fn (string $path) => preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path));
+
+    $shipped = array_map($strip, glob(__DIR__.'/../../database/migrations/*.php'));
+    sort($shipped);
+
+    $published = array_map($strip, glob(database_path('migrations/*_create_cashier_inspector_*')));
+    sort($published);
+
+    // Publishing restamps every filename, so the only guarantee worth
+    // asserting is that the new timestamps preserve the shipped order.
+    expect($published)->toBe($shipped);
+});
+
 it('confirms the webhook secret is configured', function () {
     config()->set('cashier.webhook.secret', 'whsec_test');
 
