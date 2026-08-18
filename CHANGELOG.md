@@ -11,6 +11,12 @@ release.
 
 ### Added
 
+* A troubleshooting guide, `TROUBLESHOOTING.md`, covering the recurring
+  Cashier and Stripe webhook failures: what each looks like in the dashboard,
+  what causes it, and how to fix it. Every section names the finding this
+  package records for that condition, so a diagnosis on an event page leads
+  straight to the explanation, and the README links to it.
+
 * A command to inspect one event, `php artisan cashier-inspector:event evt_123`.
   It prints the same report the dashboard's copy button produces, followed by
   every delivery attempt with its status, severity, and duration, and exits

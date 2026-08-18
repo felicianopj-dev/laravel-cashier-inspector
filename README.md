@@ -322,6 +322,13 @@ $schedule->command('cashier-inspector:prune')->daily();
 The retention period defaults to 7 days (`CASHIER_INSPECTOR_RETENTION_DAYS`)
 and can be overridden per run with `--days`.
 
+## Troubleshooting
+
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md) covers the recurring Cashier and
+Stripe webhook failures: what each looks like in the dashboard, what causes
+it, and how to fix it. Each section names the finding this package records,
+so a diagnosis on an event page leads straight to the explanation.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for what shipped in each release.
