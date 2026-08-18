@@ -142,6 +142,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Processing timeline
+    |--------------------------------------------------------------------------
+    |
+    | Records the phases of each webhook request - when it arrived, when this
+    | package captured it, how long Cashier's handler ran, how long the
+    | diagnostic rules took - and shows them on the event page. The phases are
+    | buffered and written in one insert per delivery. Turn this off on an
+    | installation with heavy webhook traffic that never reads a timeline.
+    |
+    */
+
+    'steps' => [
+        'enabled' => env('CASHIER_INSPECTOR_RECORD_STEPS', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Health check
     |--------------------------------------------------------------------------
     |

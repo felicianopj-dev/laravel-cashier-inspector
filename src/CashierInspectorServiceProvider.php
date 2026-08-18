@@ -12,6 +12,7 @@ use FelicianoPJ\CashierInspector\Listeners\RecordWebhookHandled;
 use FelicianoPJ\CashierInspector\Listeners\RecordWebhookReceived;
 use FelicianoPJ\CashierInspector\Listeners\ReportPreHandledFailure;
 use FelicianoPJ\CashierInspector\Redaction\PayloadRedactor;
+use FelicianoPJ\CashierInspector\Support\StepRecorder;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
@@ -36,6 +37,8 @@ class CashierInspectorServiceProvider extends ServiceProvider
         $this->mergeConfigFrom($this->configPath, 'cashier-inspector');
 
         $this->app->singleton(WebhookCaptureContext::class);
+
+        $this->app->singleton(StepRecorder::class);
 
         $this->app->singleton(PayloadRedactor::class, fn ($app) => new PayloadRedactor(
             paths: $app['config']->get('cashier-inspector.redaction.paths', []),

@@ -5,7 +5,10 @@ namespace FelicianoPJ\CashierInspector\Listeners;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Enums\Step;
+use FelicianoPJ\CashierInspector\Enums\StepStatus;
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
+use FelicianoPJ\CashierInspector\Support\StepRecorder;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Events\WebhookHandled;
@@ -16,6 +19,7 @@ class RecordWebhookHandled
     public function __construct(
         protected WebhookCaptureContext $context,
         protected DiagnosticEngine $diagnostics,
+        protected StepRecorder $steps,
     ) {
     }
 
@@ -26,6 +30,8 @@ class RecordWebhookHandled
         if (! $capture) {
             return;
         }
+
+        $this->steps->end(Step::CashierHandler, StepStatus::Ok, "Cashier handled {$capture->stripeEventType}.");
 
         $capture->markHandled(now());
 
@@ -48,6 +54,8 @@ class RecordWebhookHandled
             return;
         }
 
+        $this->steps->begin(Step::Diagnostics);
         $this->diagnostics->runForEventId($capture->eventId);
+        $this->steps->end(Step::Diagnostics, StepStatus::Ok, $this->steps->describeDiagnostics($capture->eventId));
     }
 }

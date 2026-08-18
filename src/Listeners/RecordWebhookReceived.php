@@ -3,8 +3,11 @@
 namespace FelicianoPJ\CashierInspector\Listeners;
 
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
+use FelicianoPJ\CashierInspector\Enums\Step;
+use FelicianoPJ\CashierInspector\Enums\StepStatus;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use FelicianoPJ\CashierInspector\Support\BillableResolver;
+use FelicianoPJ\CashierInspector\Support\StepRecorder;
 use FelicianoPJ\CashierInspector\Support\StripeEventAttributes;
 use FelicianoPJ\CashierInspector\Support\WebhookCapture;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
@@ -18,11 +21,15 @@ class RecordWebhookReceived
         protected WebhookCaptureContext $context,
         protected StripeEventAttributes $attributes,
         protected BillableResolver $billable,
+        protected StepRecorder $steps,
     ) {
     }
 
     public function handle(WebhookReceived $event): void
     {
+        $this->steps->end(Step::RequestReceived, StepStatus::Ok, 'Signature accepted.');
+        $this->steps->begin(Step::EventCaptured);
+
         $capture = WebhookCapture::fromPayload($event->payload);
 
         // Always started, even with nothing to capture: that clears any
@@ -33,6 +40,8 @@ class RecordWebhookReceived
 
         if (! $capture) {
             Log::warning('Cashier Inspector skipped a webhook payload with no usable event id or type.');
+
+            $this->steps->end(Step::EventCaptured, StepStatus::Failed, 'The payload carried no usable event id or type.');
 
             return;
         }
@@ -53,10 +62,21 @@ class RecordWebhookReceived
 
             $capture->deliveryId = $delivery->id;
             $capture->eventId = $inspectorEvent->id;
+
+            $this->steps->end(Step::EventCaptured, StepStatus::Ok, $inspectorEvent->billable_type
+                ? "Billable model resolved: {$inspectorEvent->billable_type} #{$inspectorEvent->billable_id}."
+                : 'No local billable model matched this customer.');
         } catch (Throwable $e) {
             Log::warning('Cashier Inspector failed to record a received webhook.', [
                 'exception' => $e,
             ]);
+
+            $this->steps->end(Step::EventCaptured, StepStatus::Failed, $e->getMessage());
         }
+
+        // Everything between here and WebhookHandled is Cashier's handler,
+        // plus any other listeners the application registers on these two
+        // events.
+        $this->steps->begin(Step::CashierHandler);
     }
 }

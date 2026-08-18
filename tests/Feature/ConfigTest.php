@@ -40,6 +40,7 @@ it('merges the package config', function () {
         ->and(config('cashier-inspector.stripe_api_checks.timeout_seconds'))->toBe(5)
         ->and(config('cashier-inspector.redaction.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.storage.retention_days'))->toBe(7)
+        ->and(config('cashier-inspector.steps.enabled'))->toBeTrue()
         ->and(config('cashier-inspector.health.recent_events_window_hours'))->toBe(24);
 });
 

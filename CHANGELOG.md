@@ -9,6 +9,28 @@ release.
 
 ## Unreleased
 
+### Added
+
+* A processing timeline on every event page. Each delivery now records the
+  phases of the request that carried it - when it arrived, what this package
+  captured and which billable model it resolved, how long Cashier's own
+  handler ran, how long the diagnostic rules took, and what went back to
+  Stripe - with a duration for each. Until now the page showed two points,
+  received and resolved, which said nothing about where a slow delivery
+  spent its time or how far a failed one got. A handler Cashier has no
+  method for is recorded as skipped, and one that throws as failed, carrying
+  the exception.
+
+  The phases are buffered and written in a single insert per delivery, and
+  the whole feature can be turned off with
+  `CASHIER_INSPECTOR_RECORD_STEPS=false`. Deliveries recorded before this
+  release, or with recording off, keep showing their received and resolved
+  times.
+
+  This adds a `cashier_inspector_steps` table: run
+  `php artisan cashier-inspector:install` to publish the migration, then
+  `php artisan migrate`.
+
 ### Fixed
 
 * `php artisan cashier-inspector:install` now publishes each migration the

@@ -8,6 +8,7 @@ use FelicianoPJ\CashierInspector\Enums\Severity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 class InspectorDelivery extends Model
@@ -43,6 +44,16 @@ class InspectorDelivery extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(InspectorEvent::class, 'event_id');
+    }
+
+    /**
+     * The processing timeline for this attempt, in the order the phases
+     * happened. Empty for deliveries recorded before timelines existed, or
+     * with step recording turned off.
+     */
+    public function steps(): HasMany
+    {
+        return $this->hasMany(InspectorStep::class, 'delivery_id')->orderBy('started_at')->orderBy('id');
     }
 
     /**

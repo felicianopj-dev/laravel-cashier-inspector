@@ -2,6 +2,8 @@
 
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Enums\Step;
+use FelicianoPJ\CashierInspector\Enums\StepStatus;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 
 beforeEach(function () {
@@ -53,6 +55,51 @@ it('shows the summary and processing timeline for the latest delivery', function
         ->assertSee('Event handled')
         ->assertSee('Copy diagnostic report')
         ->assertSee('Stripe Event: evt_detail_1');
+});
+
+it('renders the recorded phases of the latest delivery', function () {
+    $event = InspectorEvent::create([
+        'stripe_event_id' => 'evt_detail_steps',
+        'stripe_event_type' => 'customer.subscription.updated',
+        'livemode' => false,
+    ]);
+
+    $delivery = $event->deliveries()->create([
+        'status' => EventStatus::Handled,
+        'severity' => Severity::Success,
+        'received_at' => now()->subSeconds(5),
+        'handled_at' => now(),
+        'duration_ms' => 120,
+    ]);
+
+    $delivery->steps()->create([
+        'step' => Step::CashierHandler,
+        'status' => StepStatus::Ok,
+        'message' => 'Cashier handled customer.subscription.updated.',
+        'started_at' => now()->subSeconds(5),
+        'finished_at' => now()->subSeconds(4),
+        'duration_ms' => 1000,
+    ]);
+
+    $delivery->steps()->create([
+        'step' => Step::Diagnostics,
+        'status' => StepStatus::Skipped,
+        'message' => '12 rules ran, 0 findings recorded.',
+        'started_at' => now()->subSeconds(4),
+        'finished_at' => now()->subSeconds(4),
+        'duration_ms' => 3,
+    ]);
+
+    $this->get("cashier-inspector/events/{$event->stripe_event_id}")
+        ->assertOk()
+        ->assertSee('Cashier handler')
+        ->assertSee('Diagnostics')
+        ->assertSee('1000 ms')
+        ->assertSee('12 rules ran, 0 findings recorded.')
+        ->assertSee('badge severity-info', false)
+        // The received/resolved pair is the fallback for deliveries with no
+        // recorded phases, and must not be rendered alongside them.
+        ->assertDontSee('Event received');
 });
 
 it('lists every delivery attempt for a redelivered event', function () {

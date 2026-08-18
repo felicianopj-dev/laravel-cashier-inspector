@@ -10,7 +10,7 @@ class EventDetailController extends Controller
 {
     public function __invoke(InspectorEvent $event)
     {
-        $deliveries = $event->deliveries()->orderByDesc('received_at')->get();
+        $deliveries = $event->deliveries()->with('steps')->orderByDesc('received_at')->get();
         $latestDelivery = $deliveries->first();
         $diagnostics = $event->diagnostics()->orderByDesc('created_at')->get();
 

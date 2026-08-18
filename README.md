@@ -68,6 +68,33 @@ payloads: the term is matched against your own customer table, so no copy
 of the address has to be kept here. Only the model configured through
 Cashier (`Cashier::useCustomerModel()`) is searched, on its `email` column.
 
+## Processing timeline
+
+Every event page carries a timeline of the phases of the request that
+delivered it, with how long each one took:
+
+```
+Request received   12:22:07.100   13 ms   Signature accepted.
+Event captured     12:22:07.113   10 ms   Billable model resolved: App\Models\User #1.
+Cashier handler    12:22:07.123    7 ms   Cashier handled customer.subscription.updated.
+Diagnostics        12:22:07.130    8 ms   12 rules ran, 2 findings recorded.
+Response           12:22:07.138    0 ms   HTTP 200, recorded as handled.
+```
+
+These five are the phases that can honestly be observed from outside
+Cashier. Its webhook controller dispatches an event, calls its handler, and
+dispatches another event, so everything the handler does is a single window
+rather than a breakdown - and any listeners your own application registers
+on those events fall inside that window too. When Cashier has no handler for
+the event type, the handler phase is recorded as skipped; when it throws, as
+failed, carrying the exception.
+
+Phases are buffered and written in one insert per delivery. Turn the whole
+thing off with `CASHIER_INSPECTOR_RECORD_STEPS=false` on an installation
+with heavy webhook traffic that never reads a timeline. Deliveries recorded
+while it is off, or before this feature existed, still show their received
+and resolved times.
+
 Every event page includes a "Copy diagnostic report" button that generates
 a sanitized, plain-text summary suitable for pasting into a GitHub issue,
 Discord, support, or an LLM.

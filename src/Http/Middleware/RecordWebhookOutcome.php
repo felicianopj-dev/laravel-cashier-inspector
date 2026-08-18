@@ -6,10 +6,14 @@ use Closure;
 use FelicianoPJ\CashierInspector\Diagnostics\DiagnosticEngine;
 use FelicianoPJ\CashierInspector\Enums\EventStatus;
 use FelicianoPJ\CashierInspector\Enums\Severity;
+use FelicianoPJ\CashierInspector\Enums\Step;
+use FelicianoPJ\CashierInspector\Enums\StepStatus;
 use FelicianoPJ\CashierInspector\Models\InspectorDelivery;
 use FelicianoPJ\CashierInspector\Support\CashierWebhookRoute;
+use FelicianoPJ\CashierInspector\Support\StepRecorder;
 use FelicianoPJ\CashierInspector\Support\WebhookCaptureContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -26,11 +30,32 @@ class RecordWebhookOutcome
     public function __construct(
         protected WebhookCaptureContext $context,
         protected DiagnosticEngine $diagnostics,
+        protected StepRecorder $steps,
     ) {
     }
 
+    /**
+     * The earliest point this package sees the request. Global middleware
+     * runs before routing, so CashierWebhookRoute::matches() cannot answer
+     * yet - it resolves the route's controller, which is the whole reason
+     * it doesn't care what URI the application mounted Cashier at. The
+     * timeline is therefore opened for every request and only ever written
+     * for one that turns out to be a webhook, since nothing else reaches
+     * the flush.
+     *
+     * The clock comes from PHP's own request start where it is available,
+     * which is earlier and more honest than this middleware's own now().
+     */
     public function handle(Request $request, Closure $next): Response
     {
+        $startedAt = $request->server('REQUEST_TIME_FLOAT');
+
+        $this->steps->reset();
+        $this->steps->begin(
+            Step::RequestReceived,
+            is_numeric($startedAt) ? Carbon::createFromTimestampMs((int) ($startedAt * 1000)) : null
+        );
+
         return $next($request);
     }
 
@@ -44,7 +69,15 @@ class RecordWebhookOutcome
 
         $capture = $this->context->current();
 
-        if (! $capture || $capture->status !== EventStatus::Received || ! $capture->deliveryId) {
+        if (! $capture || ! $capture->deliveryId) {
+            return;
+        }
+
+        // Already resolved by the handled listener or the exception hook.
+        // Nothing left to record but the response itself.
+        if ($capture->status !== EventStatus::Received) {
+            $this->recordResponse($capture->status, $status, $capture->deliveryId);
+
             return;
         }
 
@@ -79,6 +112,30 @@ class RecordWebhookOutcome
             return;
         }
 
+        // Cashier had no handler for this event type, so the handler phase
+        // never reported an ending and is recorded as skipped.
+        $this->steps->closeOpen(
+            $capture->status === EventStatus::Unmatched ? StepStatus::Skipped : StepStatus::Failed,
+            $capture->status === EventStatus::Unmatched
+                ? 'Cashier has no handler for this event type.'
+                : "Request ended with HTTP status {$status}."
+        );
+
+        $this->steps->begin(Step::Diagnostics);
         $this->diagnostics->runForEventId($capture->eventId);
+        $this->steps->end(Step::Diagnostics, StepStatus::Ok, $this->steps->describeDiagnostics($capture->eventId));
+
+        $this->recordResponse($capture->status, $status, $capture->deliveryId);
+    }
+
+    protected function recordResponse(EventStatus $outcome, int $status, int $deliveryId): void
+    {
+        $this->steps->mark(
+            Step::Response,
+            $outcome === EventStatus::Failed ? StepStatus::Failed : StepStatus::Ok,
+            "HTTP {$status}, recorded as {$outcome->value}."
+        );
+
+        $this->steps->flush($deliveryId);
     }
 }

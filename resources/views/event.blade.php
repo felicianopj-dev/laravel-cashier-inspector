@@ -134,12 +134,32 @@
 
     <h2>Processing timeline</h2>
     @if ($latestDelivery)
-        <ul class="timeline card card-pad">
-            <li>Event received — {{ $latestDelivery->received_at?->toDayDateTimeString() }}</li>
-            @if ($latestDelivery->resolvedAt())
-                <li>Event {{ $latestDelivery->status->value }} — {{ $latestDelivery->resolvedAt()->toDayDateTimeString() }}</li>
-            @endif
-        </ul>
+        @if ($latestDelivery->steps->isNotEmpty())
+            <ul class="timeline card card-pad">
+                @foreach ($latestDelivery->steps as $step)
+                    <li>
+                        <span class="badge severity-{{ $step->status->value === 'failed' ? 'error' : ($step->status->value === 'skipped' ? 'info' : 'success') }}">{{ $step->status->value }}</span>
+                        <strong title="{{ $step->step->description() }}">{{ $step->step->label() }}</strong>
+                        — {{ $step->started_at?->format('H:i:s.v') }}
+                        @if ($step->duration_ms)
+                            <span class="placeholder">({{ $step->duration_ms }} ms)</span>
+                        @endif
+                        @if ($step->message)
+                            <div class="placeholder">{{ $step->message }}</div>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            {{-- Deliveries recorded before timelines existed, or with step
+                 recording turned off, still get the received/resolved pair. --}}
+            <ul class="timeline card card-pad">
+                <li>Event received — {{ $latestDelivery->received_at?->toDayDateTimeString() }}</li>
+                @if ($latestDelivery->resolvedAt())
+                    <li>Event {{ $latestDelivery->status->value }} — {{ $latestDelivery->resolvedAt()->toDayDateTimeString() }}</li>
+                @endif
+            </ul>
+        @endif
         @if ($deliveries->count() > 1)
             <p class="placeholder" style="margin-top: 0.5rem;">This event was delivered {{ $deliveries->count() }} times — see all attempts below.</p>
         @endif
