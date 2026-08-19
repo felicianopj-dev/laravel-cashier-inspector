@@ -1,0 +1,8 @@
+# Keep the published dist to what an installer actually runs.
+/.github          export-ignore
+/.gitattributes   export-ignore
+/.gitignore       export-ignore
+/phpunit.xml.dist export-ignore
+/testbench.yaml   export-ignore
+/tests            export-ignore
+/workbench        export-ignore
