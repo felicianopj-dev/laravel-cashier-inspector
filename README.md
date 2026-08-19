@@ -384,6 +384,34 @@ Useful where the dashboard is not reachable — an SSH session on a
 production box, or a CI job. Exits non-zero when no event was captured for
 that id.
 
+## Filling in missing associations
+
+Searching by customer id finds every event recorded against that customer,
+so an event stored without one is invisible to that search. Two things leave
+the association missing, and neither is visible at the moment the event
+arrives.
+
+Some Stripe objects reference no customer at all - an `invoice_payment`
+names only its invoice - so the customer has to come from another event for
+the same invoice or subscription. That happens automatically on capture,
+but only if the related event arrived first. Separately, an event captured
+before a billable model had its `stripe_id` set matched nothing at the time
+and stays unmatched afterwards.
+
+```bash
+php artisan cashier-inspector:backfill-customers
+```
+
+This fills both, working from the recorded correlation ids rather than
+stored payloads, so it behaves the same where payload storage is off. It
+only ever fills blanks: an event that already has a customer or a billable
+model is left alone. Run it after setting a `stripe_id` on an existing
+customer, or after a burst of webhooks arrived out of order.
+
+An event whose payload names no customer, invoice or subscription - a charge
+created outside any customer, for instance - has nothing to correlate
+through, and its customer column stays empty.
+
 ## Retention
 
 Old events, deliveries, and diagnostics can be pruned:

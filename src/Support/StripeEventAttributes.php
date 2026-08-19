@@ -12,6 +12,25 @@ use FelicianoPJ\CashierInspector\Redaction\PayloadRedactor;
  */
 class StripeEventAttributes
 {
+    /**
+     * The correlation columns, each mapped to the Stripe object type whose
+     * own id fills it and the field other objects reference it by.
+     *
+     * Both directions matter. An event whose object *is* the customer
+     * carries no nested customer field, and an event about something else
+     * carries no id of its own worth recording - so reading only one of
+     * the two leaves a column empty on half the event types that could
+     * have filled it.
+     *
+     * @var array<string, array{0: string, 1: string}>
+     */
+    protected const CORRELATION_IDS = [
+        'customer_id' => ['customer', 'customer'],
+        'subscription_id' => ['subscription', 'subscription'],
+        'invoice_id' => ['invoice', 'invoice'],
+        'checkout_session_id' => ['checkout.session', 'checkout_session'],
+    ];
+
     public function __construct(protected PayloadRedactor $redactor)
     {
     }
@@ -21,27 +40,22 @@ class StripeEventAttributes
         $object = $payload['data']['object'] ?? [];
         $objectType = $object['object'] ?? null;
 
-        return [
+        $attributes = [
             'stripe_event_type' => $payload['type'],
             'stripe_api_version' => $payload['api_version'] ?? null,
             'livemode' => (bool) ($payload['livemode'] ?? false),
             'payload' => config('cashier-inspector.storage.store_payloads')
                 ? $this->redactor->redact($payload)
                 : null,
-            'customer_id' => $this->stringOrNull($object['customer'] ?? null),
-            'subscription_id' => $this->subscriptionId($object, $objectType),
-            'invoice_id' => $objectType === 'invoice' ? $this->stringOrNull($object['id'] ?? null) : null,
-            'checkout_session_id' => $objectType === 'checkout.session' ? $this->stringOrNull($object['id'] ?? null) : null,
         ];
-    }
 
-    protected function subscriptionId(array $object, ?string $objectType): ?string
-    {
-        if ($objectType === 'subscription') {
-            return $this->stringOrNull($object['id'] ?? null);
+        foreach (self::CORRELATION_IDS as $column => [$type, $reference]) {
+            $attributes[$column] = $this->stringOrNull(
+                $objectType === $type ? ($object['id'] ?? null) : ($object[$reference] ?? null)
+            );
         }
 
-        return $this->stringOrNull($object['subscription'] ?? null);
+        return $attributes;
     }
 
     protected function stringOrNull(mixed $value): ?string

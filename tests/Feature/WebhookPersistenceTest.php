@@ -182,3 +182,20 @@ it('does not attach a later outcome to a previous request\'s delivery', function
     expect($delivery->fresh()->status)->toBe(EventStatus::Received)
         ->and($delivery->fresh()->handled_at)->toBeNull();
 });
+
+it('records the customer id when the event object is the customer itself', function () {
+    event(new WebhookReceived([
+        'id' => 'evt_customer_updated',
+        'type' => 'customer.updated',
+        'livemode' => false,
+        'data' => [
+            'object' => [
+                'id' => 'cus_123',
+                'object' => 'customer',
+            ],
+        ],
+    ]));
+
+    expect(InspectorEvent::where('stripe_event_id', 'evt_customer_updated')->sole()->customer_id)
+        ->toBe('cus_123');
+});

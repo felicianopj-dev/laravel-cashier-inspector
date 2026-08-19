@@ -7,6 +7,7 @@ use FelicianoPJ\CashierInspector\Enums\Step;
 use FelicianoPJ\CashierInspector\Enums\StepStatus;
 use FelicianoPJ\CashierInspector\Models\InspectorEvent;
 use FelicianoPJ\CashierInspector\Support\BillableResolver;
+use FelicianoPJ\CashierInspector\Support\CustomerCorrelator;
 use FelicianoPJ\CashierInspector\Support\StepRecorder;
 use FelicianoPJ\CashierInspector\Support\StripeEventAttributes;
 use FelicianoPJ\CashierInspector\Support\WebhookCapture;
@@ -21,6 +22,7 @@ class RecordWebhookReceived
         protected WebhookCaptureContext $context,
         protected StripeEventAttributes $attributes,
         protected BillableResolver $billable,
+        protected CustomerCorrelator $correlator,
         protected StepRecorder $steps,
     ) {
     }
@@ -48,6 +50,11 @@ class RecordWebhookReceived
 
         try {
             $attributes = $this->attributes->extract($event->payload);
+
+            // An event that names no customer of its own can still belong
+            // to one, through an invoice or subscription already seen.
+            $attributes = $this->correlator->fill($attributes);
+
             $attributes += $this->billable->resolve($attributes['customer_id']);
 
             $inspectorEvent = InspectorEvent::updateOrCreate(

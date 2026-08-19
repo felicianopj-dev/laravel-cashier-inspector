@@ -10,7 +10,7 @@
 afterEach(function () {
     @unlink(config_path('cashier-inspector.php'));
 
-    foreach (glob(database_path('migrations/*_create_cashier_inspector_*')) as $file) {
+    foreach (glob(database_path('migrations/*_cashier_inspector_*')) as $file) {
         @unlink($file);
     }
 });
@@ -56,14 +56,14 @@ it('keeps published migrations in the order they are meant to run', function () 
 
     $strip = fn (string $path) => preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path));
 
+    // Both globs come back in filename order, which for the shipped set is
+    // the order they are meant to run in and for the published set is
+    // timestamp order. Comparing them unsorted is what makes this an
+    // assertion about order: a migration that alters an earlier table
+    // sorts before it alphabetically but must still be published after it.
     $shipped = array_map($strip, glob(__DIR__.'/../../database/migrations/*.php'));
-    sort($shipped);
+    $published = array_map($strip, glob(database_path('migrations/*_cashier_inspector_*')));
 
-    $published = array_map($strip, glob(database_path('migrations/*_create_cashier_inspector_*')));
-    sort($published);
-
-    // Publishing restamps every filename, so the only guarantee worth
-    // asserting is that the new timestamps preserve the shipped order.
     expect($published)->toBe($shipped);
 });
 

@@ -11,6 +11,15 @@ release.
 
 ### Added
 
+* A `cashier-inspector:backfill-customers` command, and automatic
+  correlation on capture, for events that arrive with no customer of their
+  own. Some Stripe objects reference none - an `invoice_payment` names only
+  its invoice - so the customer is taken from another event for the same
+  invoice or subscription. Correlation reads the recorded id columns rather
+  than stored payloads, so it works where payload storage is off. The
+  command also resolves billable models for events captured before a
+  `stripe_id` was set, and only ever fills blanks.
+
 * An optional route instrumentation, off by default, behind
   `CASHIER_INSPECTOR_ROUTE_MIDDLEWARE=true`. It attaches middleware to
   Cashier's own webhook route so that every exception the controller lets
@@ -53,6 +62,18 @@ release.
   `php artisan migrate`.
 
 ### Fixed
+
+* Correlation ids are now read in both directions. An event whose object
+  *is* the customer or the invoice recorded nothing in that column, and an
+  event referencing an invoice it was not itself about recorded no invoice
+  id either. `customer.updated` was the visible case: it stored no customer,
+  so the dashboard column was empty and a search by customer id could not
+  find it.
+
+  This adds an index on `invoice_id`, which correlation now queries: run
+  `php artisan cashier-inspector:install` to publish the migration, then
+  `php artisan migrate`. Events recorded before the upgrade keep their empty
+  columns until `php artisan cashier-inspector:backfill-customers` is run.
 
 * `php artisan cashier-inspector:install` now publishes each migration the
   application is missing, instead of skipping the whole step as soon as any

@@ -2,6 +2,7 @@
 
 namespace FelicianoPJ\CashierInspector;
 
+use FelicianoPJ\CashierInspector\Console\BackfillCustomersCommand;
 use FelicianoPJ\CashierInspector\Console\CheckCommand;
 use FelicianoPJ\CashierInspector\Console\EventCommand;
 use FelicianoPJ\CashierInspector\Console\InstallCommand;
@@ -69,6 +70,7 @@ class CashierInspectorServiceProvider extends ServiceProvider
             ], 'cashier-inspector-migrations');
 
             $this->commands([
+                BackfillCustomersCommand::class,
                 CheckCommand::class,
                 EventCommand::class,
                 InstallCommand::class,
