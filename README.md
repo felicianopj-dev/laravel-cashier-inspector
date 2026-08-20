@@ -402,11 +402,17 @@ and stays unmatched afterwards.
 php artisan cashier-inspector:backfill-customers
 ```
 
-This fills both, working from the recorded correlation ids rather than
-stored payloads, so it behaves the same where payload storage is off. It
-only ever fills blanks: an event that already has a customer or a billable
-model is left alone. Run it after setting a `stripe_id` on an existing
-customer, or after a burst of webhooks arrived out of order.
+This fills both. It only ever fills blanks: an event that already has a
+customer or a billable model is left alone. Run it after setting a
+`stripe_id` on an existing customer, or after a burst of webhooks arrived
+out of order.
+
+It also re-reads stored payloads first, to recover correlation ids from
+events captured by a version of this package that was not yet reading
+them - which is what an existing installation needs after upgrading.
+Correlating between events never touches payloads, so that part behaves
+the same where payload storage is off; only the recovery pass depends on
+a payload having been stored.
 
 An event whose payload names no customer, invoice or subscription - a charge
 created outside any customer, for instance - has nothing to correlate

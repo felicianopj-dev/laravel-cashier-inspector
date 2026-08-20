@@ -15,10 +15,12 @@ release.
   correlation on capture, for events that arrive with no customer of their
   own. Some Stripe objects reference none - an `invoice_payment` names only
   its invoice - so the customer is taken from another event for the same
-  invoice or subscription. Correlation reads the recorded id columns rather
-  than stored payloads, so it works where payload storage is off. The
-  command also resolves billable models for events captured before a
-  `stripe_id` was set, and only ever fills blanks.
+  invoice or subscription. Correlating between events reads the recorded id
+  columns rather than stored payloads, so it works where payload storage is
+  off. The command also resolves billable models for events captured before
+  a `stripe_id` was set, and re-reads stored payloads to recover ids from
+  events captured before this package was reading them, which is what an
+  existing installation needs after upgrading. It only ever fills blanks.
 
 * An optional route instrumentation, off by default, behind
   `CASHIER_INSPECTOR_ROUTE_MIDDLEWARE=true`. It attaches middleware to

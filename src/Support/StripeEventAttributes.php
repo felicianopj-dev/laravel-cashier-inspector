@@ -37,9 +37,6 @@ class StripeEventAttributes
 
     public function extract(array $payload): array
     {
-        $object = $payload['data']['object'] ?? [];
-        $objectType = $object['object'] ?? null;
-
         $attributes = [
             'stripe_event_type' => $payload['type'],
             'stripe_api_version' => $payload['api_version'] ?? null,
@@ -49,17 +46,47 @@ class StripeEventAttributes
                 : null,
         ];
 
+        return $attributes + $this->correlationIds($payload);
+    }
+
+    /**
+     * The correlation columns alone, for callers that already hold a
+     * stored payload and want nothing rebuilt from it - the backfill
+     * command re-reading rows captured before a column was being read.
+     *
+     * @return array<string, string|null>
+     */
+    public function correlationIds(array $payload): array
+    {
+        $object = $payload['data']['object'] ?? [];
+        $objectType = $object['object'] ?? null;
+
+        $ids = [];
+
         foreach (self::CORRELATION_IDS as $column => [$type, $reference]) {
-            $attributes[$column] = $this->stringOrNull(
+            $ids[$column] = $this->stringOrNull(
                 $objectType === $type ? ($object['id'] ?? null) : ($object[$reference] ?? null)
             );
         }
 
-        return $attributes;
+        return $ids;
     }
 
+    /**
+     * The mask is rejected as well as a non-string, because correlation
+     * ids are also read back out of payloads that were already redacted on
+     * the way in - the backfill command's recovery pass. A configured
+     * redaction path covering a correlation field would otherwise write
+     * the mask itself into an indexed, searchable column, where it reads
+     * as a real id and groups unrelated events under it. No genuine Stripe
+     * id can collide with the mask.
+     */
     protected function stringOrNull(mixed $value): ?string
     {
-        return is_string($value) ? $value : null;
+        if (! is_string($value) || $value === $this->redactor->mask()) {
+            return null;
+        }
+
+        return $value;
     }
 }

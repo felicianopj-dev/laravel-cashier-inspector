@@ -15,6 +15,15 @@ class PayloadRedactor
     ) {
     }
 
+    /**
+     * The string a redacted value is replaced with. Exposed so a reader of
+     * a stored payload can tell a real value from a masked one.
+     */
+    public function mask(): string
+    {
+        return $this->mask;
+    }
+
     public function redact(array $payload): array
     {
         if (! $this->enabled) {
