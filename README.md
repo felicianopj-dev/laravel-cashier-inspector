@@ -23,11 +23,16 @@ version it does not support instead of failing later at runtime.
 
 Every supported Laravel version is covered by the test matrix, against both
 lowest and stable dependency resolutions: Laravel 11 and 12 on PHP 8.2, 8.3,
-and 8.4, and Laravel 13 on PHP 8.3 and 8.4. Laravel 13 is not tested on PHP
-8.2 because it requires a Pest Laravel plugin major that itself requires PHP
-8.3; the package still supports PHP 8.2 on Laravel 11 and 12. Both Cashier
-majors are covered by the same runs: the lowest resolutions land on Cashier 15
-and the stable ones on Cashier 16.
+8.4 and 8.5, and Laravel 13 on PHP 8.3, 8.4 and 8.5. Laravel 13 is not tested
+on PHP 8.2 because it requires a Pest Laravel plugin major that itself
+requires PHP 8.3; the package still supports PHP 8.2 on Laravel 11 and 12.
+Both Cashier majors are covered by the same runs: the lowest resolutions land
+on Cashier 15 and the stable ones on Cashier 16.
+
+On PHP 8.5, the oldest resolution reports a deprecation for every test. It
+comes from `PDO::MYSQL_ATTR_SSL_CA` in Laravel 11's schema state and in
+Testbench's own skeleton config, not from this package, and the suite passes.
+The tests run on SQLite and never touch that constant.
 
 ## Installation
 
